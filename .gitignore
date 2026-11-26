@@ -1,0 +1,13 @@
+dist/
+node_modules/
+coverage/
+.DS_Store
+*.bin
+*.apk
+*.exe
+*.dll
+*.rar
+*.k10
+*.backup.json
+!tests/fixtures/*.json
+.local/

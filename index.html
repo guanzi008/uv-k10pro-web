@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="theme-color" content="#102b46">
+    <meta name="description" content="UV-K10 Pro 本地 Web 写频工作台：普通信道、Si4732 和 BK1080 存台、设备设置与备份差分。">
+    <title>K10 Studio · UV-K10 Pro 写频工作台</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23102b46'/%3E%3Cpath d='M15 37h8l5-17 9 29 5-16h7' fill='none' stroke='%235dd6db' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="./src/styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主内容</a>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="主导航">
+        <a class="brand" href="./" aria-label="K10 Studio 工作台首页">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M5 22h7l4-12 7 22 4-13h8"/></svg></span>
+          <span class="brand-copy"><strong>K10 Studio</strong><span>UV-K10 Pro 工作台</span></span>
+        </a>
+        <div class="sidebar-section">配置管理</div>
+        <nav class="nav-list" aria-label="设备配置">
+          <button class="nav-item is-active" data-view="channels" aria-current="page" type="button"><span data-icon="channels"></span><span class="nav-label">普通对讲信道</span><span class="nav-count" id="nav-channel-count">—</span></button>
+          <button class="nav-item" data-view="vfo" type="button"><span data-icon="sliders"></span><span class="nav-label">VFO A / B</span></button>
+          <button class="nav-item" data-view="si4732" type="button"><span data-icon="radio"></span><span class="nav-label">Si4732 广播存台</span></button>
+          <button class="nav-item" data-view="bk1080" type="button"><span data-icon="broadcast"></span><span class="nav-label">BK1080 广播存台</span></button>
+          <button class="nav-item" data-view="settings" type="button"><span data-icon="sliders"></span><span class="nav-label">设备设置</span></button>
+          <button class="nav-item" data-view="scans" type="button"><span data-icon="scan"></span><span class="nav-label">扫描列表</span></button>
+          <button class="nav-item" data-view="contacts" type="button"><span data-icon="contacts"></span><span class="nav-label">信令联系人</span></button>
+          <button class="nav-item" data-view="messages" type="button"><span data-icon="message"></span><span class="nav-label">消息与文本</span></button>
+        </nav>
+        <div class="sidebar-section">工作区工具</div>
+        <nav class="nav-list" aria-label="工作区工具">
+          <button class="nav-item" data-view="backup" type="button"><span data-icon="layers"></span><span class="nav-label">备份与差分</span><span class="nav-count nav-count-accent" id="nav-change-count" hidden>0</span></button>
+          <button class="nav-item" data-view="logs" type="button"><span data-icon="terminal"></span><span class="nav-label">连接日志</span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="target-card"><span class="eyebrow">目标设备</span><strong>UV-K10 Pro</strong><span>ENG 8.02.16 · K8 协议</span><span class="target-note">型号匹配后启用设备写入</span></div>
+          <button class="sidebar-help" id="help-button" type="button"><span data-icon="help"></span><span>使用说明与兼容性</span></button>
+          <div class="local-note"><span data-icon="shield"></span><span>备份在浏览器本地处理</span></div>
+        </div>
+      </aside>
+      <button class="mobile-scrim" id="mobile-scrim" type="button" aria-label="关闭导航" hidden></button>
+      <div class="main-shell">
+        <header class="app-header">
+          <div class="header-location"><button class="icon-button mobile-menu" id="menu-button" type="button" aria-label="打开导航" aria-controls="sidebar" aria-expanded="false"><span data-icon="menu"></span></button><span class="breadcrumb-root">工作空间</span><span class="breadcrumb-separator">/</span><span id="breadcrumb-current">普通对讲信道</span></div>
+          <div class="header-actions">
+            <button class="button button-quiet" id="import-button" type="button"><span data-icon="import"></span><span>导入</span></button>
+            <button class="button button-outline" id="connect-button" type="button"><span data-icon="plug"></span><span>连接设备</span></button>
+            <button class="button button-primary" id="read-button" type="button" disabled><span data-icon="download"></span><span>读取设备</span></button>
+            <button class="button button-write" id="write-button" type="button" disabled><span data-icon="upload"></span><span>写入预览</span></button>
+          </div>
+        </header>
+        <div class="connection-strip" id="connection-strip">
+          <div class="connection-info"><span class="state-indicator" id="connection-dot"></span><strong id="connection-state">未连接</strong><span class="connection-divider"></span><span id="connection-detail">可先导入备份，在本地编辑配置</span></div>
+          <div class="connection-tools"><button class="button button-outline button-small" id="authenticate-button" type="button" hidden><span data-icon="shield"></span><span>输入设备密码</span></button><span class="workspace-mode" id="workspace-mode">没有工作区</span></div>
+        </div>
+        <div class="task-progress" id="task-progress" hidden aria-live="polite"><div class="task-progress-copy"><span id="task-progress-label">正在处理</span><span id="task-progress-count"></span><button class="text-button" id="cancel-button" type="button">取消</button></div><progress id="task-progress-bar" max="100" value="0"></progress></div>
+        <main id="main-content" tabindex="-1">
+          <section class="page-heading"><div><div class="eyebrow" id="page-eyebrow">CHANNEL WORKSPACE</div><h1 id="page-title">普通对讲信道</h1><p id="page-description">整理收发频率与信道参数，修改后先审阅差分，再写入设备。</p></div><div class="page-actions" id="page-actions"></div></section>
+          <section class="workspace-summary" id="workspace-summary" aria-label="工作区摘要"><div class="summary-item"><span>当前工作区</span><strong id="summary-name">尚未载入</strong></div><div class="summary-item"><span id="summary-count-label">已使用信道</span><strong id="summary-count">—</strong></div><div class="summary-item"><span>待写入修改</span><strong id="summary-changes">0 <small>字节</small></strong></div><div class="summary-item"><span>数据来源</span><strong id="summary-source">本地工作台</strong></div></section>
+          <div id="view-host"></div>
+          <footer class="page-footer"><span>UV-K10 Pro 专用布局 · 保留未知字段</span><span id="footer-status">修改先保存在工作区</span></footer>
+        </main>
+      </div>
+    </div>
+    <input id="import-file" type="file" accept=".bin,.json,.csv,.k10" hidden>
+    <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="false"></div>
+    <dialog class="modal connection-modal" id="connection-dialog" aria-labelledby="connection-dialog-title"></dialog>
+    <dialog class="modal authentication-modal" id="authentication-dialog" aria-labelledby="authentication-title"></dialog>
+    <dialog class="editor-dialog" id="editor-dialog" aria-labelledby="editor-title"></dialog>
+    <dialog class="modal preview-modal" id="preview-dialog" aria-labelledby="preview-title"></dialog>
+    <dialog class="modal confirm-modal" id="confirm-dialog" aria-labelledby="confirm-title"></dialog>
+    <dialog class="modal help-modal" id="help-dialog" aria-labelledby="help-title"></dialog>
+    <noscript><div class="noscript">此工作台需要启用 JavaScript。信道文件在浏览器本地解析。</div></noscript>
+    <script type="module" src="./src/app.mjs"></script>
+  </body>
+</html>

@@ -1,0 +1,134 @@
+{
+  "kind": "synthetic-password-arithmetic-vectors",
+  "dllSha256": "61a2cef101c4325a622d163edffa35f17c82b33cf4ed3847bd4eaa9a1920581d",
+  "cpsSha256": "79c9b3429187f7fca13cc8971d0e5fd46184f078127f149f333a267b99815132",
+  "rawFirmwareSha256": "061759672cc69a1b00420ce6fae67b0756d3db111f8fa4329cadc940dcd17f17",
+  "hostVendorExecution": false,
+  "dllMainCalled": false,
+  "nativeExternalHooks": [
+    "memcpy"
+  ],
+  "nativeMemcpyCalls": 12,
+  "vectors": [
+    {
+      "password": "",
+      "challengeHex": "2432b62228a21bbd6220fd20026cfdd2",
+      "digestHex": "80345fcd04fa8d4813477cd9ed5ce819cde96d144ca77f478ef06ba9c673d8d4",
+      "keyHex": "54ec2c0bad917dc65438db95f93101d4",
+      "responseHex": "22d7911f60857653c7823a5616973140",
+      "nativeInstructions": 12719,
+      "stockCompare": {
+        "valid": 0,
+        "corrupt": 1,
+        "validInstructions": 42540,
+        "hardwareHooks": 0
+      },
+      "stockNormalAuth": {
+        "replyBodyHex": "d602040000000000",
+        "secondaryGate": 0,
+        "instructions": 42578,
+        "hardwareHooks": 1
+      }
+    },
+    {
+      "password": "test-password",
+      "challengeHex": "3f889984db18e39a17245f426283f16f",
+      "digestHex": "d9774e099bba09808d42e853cfa241147dc58d4dd4b2bfde320781662da374a1",
+      "keyHex": "7803ed24fd3b0eb253fd5a87822f8469",
+      "responseHex": "3f4cc0d5e4acb4e994de9b04ab0560c9",
+      "nativeInstructions": 12719,
+      "stockCompare": {
+        "valid": 0,
+        "corrupt": 1,
+        "validInstructions": 42498,
+        "hardwareHooks": 0
+      },
+      "stockNormalAuth": {
+        "replyBodyHex": "d602040000000000",
+        "secondaryGate": 0,
+        "instructions": 42536,
+        "hardwareHooks": 1
+      }
+    },
+    {
+      "password": "123456",
+      "challengeHex": "b8b96865d6f5f8f496c141d89945c804",
+      "digestHex": "3725144809f2721ec67ea7a05bec386aeee68edd53c822a9e24cd199edc80dac",
+      "keyHex": "9b28dca590233efc6f5c6ff38662de84",
+      "responseHex": "94e99b6aae01d149675ec2dac38f7581",
+      "nativeInstructions": 12719,
+      "stockCompare": {
+        "valid": 0,
+        "corrupt": 1,
+        "validInstructions": 42435,
+        "hardwareHooks": 0
+      },
+      "stockNormalAuth": {
+        "replyBodyHex": "d602040000000000",
+        "secondaryGate": 0,
+        "instructions": 42473,
+        "hardwareHooks": 1
+      }
+    },
+    {
+      "password": " abc ",
+      "challengeHex": "2c319917d17114dae41127496e114bcc",
+      "digestHex": "edf270653ff672e59451cc73b4f28f4ad8f1b794cc0a52bda13d611ef28623d9",
+      "keyHex": "34d1f69721974f442903c6bf20457e92",
+      "responseHex": "da9c7cb1eab3a0730f70f7e3ca9286c8",
+      "nativeInstructions": 12719,
+      "stockCompare": {
+        "valid": 0,
+        "corrupt": 1,
+        "validInstructions": 42407,
+        "hardwareHooks": 0
+      },
+      "stockNormalAuth": {
+        "replyBodyHex": "d602040000000000",
+        "secondaryGate": 0,
+        "instructions": 42445,
+        "hardwareHooks": 1
+      }
+    },
+    {
+      "password": "测试",
+      "challengeHex": "ff16381456518525de04c31b413bf557",
+      "digestHex": "37e7c46cffef723c73f3c6577f53a326176b7f7220c77d7636dc044473e43462",
+      "keyHex": "55d3201fbbebae0a058e01770d2cc831",
+      "responseHex": "a671a04a8f7ed9d7d59f461c65af9d70",
+      "nativeInstructions": 12719,
+      "stockCompare": {
+        "valid": 0,
+        "corrupt": 1,
+        "validInstructions": 42574,
+        "hardwareHooks": 0
+      },
+      "stockNormalAuth": {
+        "replyBodyHex": "d602040000000000",
+        "secondaryGate": 0,
+        "instructions": 42612,
+        "hardwareHooks": 1
+      }
+    },
+    {
+      "password": "0123456789abcdefghijklmnopqrstuv",
+      "challengeHex": "b571d7ed0d289404cf9ed24b8c72dfc4",
+      "digestHex": "f2cb2e3d1f19eb59f80670ba67533cad9cf153e85cf698168447482354ea64d7",
+      "keyHex": "25afc4693c51acddee9e86e68f00cd31",
+      "responseHex": "c8e268cc10d19f7b3b7dac279f404a78",
+      "nativeInstructions": 12719,
+      "stockCompare": {
+        "valid": 0,
+        "corrupt": 1,
+        "validInstructions": 42570,
+        "hardwareHooks": 0
+      },
+      "stockNormalAuth": {
+        "replyBodyHex": "d602040000000000",
+        "secondaryGate": 0,
+        "instructions": 42608,
+        "hardwareHooks": 1
+      }
+    }
+  ]
+}

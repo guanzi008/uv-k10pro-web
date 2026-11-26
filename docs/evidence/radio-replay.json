@@ -1,0 +1,459 @@
+{
+  "schema_version": 1,
+  "sample_sha256": "061759672cc69a1b00420ce6fae67b0756d3db111f8fa4329cadc940dcd17f17",
+  "cpu": "Unicorn Cortex-M0 instruction execution",
+  "functions": {
+    "broadcast_load": "0x0800f020",
+    "broadcast_save": "0x080101fc",
+    "boot_bitmap_load": "0x0800fd04"
+  },
+  "hardware_replacements": [
+    "0x080195e4 NOR read",
+    "0x08019588 NOR sector erase",
+    "0x080197ec NOR page program"
+  ],
+  "scope": "Synthetic 4 MiB NOR. Actual stock loader, saver, memcpy, validation and RMW instructions execute. No receiver, MMIO, USB, BLE, display, RF or physical hardware is modeled.",
+  "cases": [
+    {
+      "case": "load",
+      "chip_condition": 1,
+      "requested_band": 0,
+      "actual_band": 0,
+      "preset_count": 32,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 73728,
+          "length": 8
+        },
+        {
+          "op": "read",
+          "address": 73984,
+          "length": 1040
+        }
+      ],
+      "vfo_frequency_raw": 8810000,
+      "vfo_bfo_raw": 65436,
+      "call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 1114,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "load",
+      "chip_condition": 1,
+      "requested_band": 1,
+      "actual_band": 1,
+      "preset_count": 32,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 73728,
+          "length": 8
+        },
+        {
+          "op": "read",
+          "address": 74496,
+          "length": 1040
+        }
+      ],
+      "vfo_frequency_raw": 19800,
+      "vfo_bfo_raw": 65436,
+      "call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 1118,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "load",
+      "chip_condition": 1,
+      "requested_band": 2,
+      "actual_band": 2,
+      "preset_count": 32,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 73728,
+          "length": 8
+        },
+        {
+          "op": "read",
+          "address": 75008,
+          "length": 1040
+        }
+      ],
+      "vfo_frequency_raw": 100000,
+      "vfo_bfo_raw": 65436,
+      "call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 1124,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "load",
+      "chip_condition": 1,
+      "requested_band": 3,
+      "actual_band": 3,
+      "preset_count": 128,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 73728,
+          "length": 8
+        },
+        {
+          "op": "read",
+          "address": 75520,
+          "length": 1040
+        }
+      ],
+      "vfo_frequency_raw": 1420000,
+      "vfo_bfo_raw": 65436,
+      "call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 2102,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "load",
+      "chip_condition": 0,
+      "requested_band": 3,
+      "actual_band": 0,
+      "preset_count": 32,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 73728,
+          "length": 8
+        },
+        {
+          "op": "read",
+          "address": 73984,
+          "length": 1040
+        }
+      ],
+      "vfo_frequency_raw": 8810000,
+      "vfo_bfo_raw": 0,
+      "call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 1081,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "save",
+      "band": 0,
+      "flags": 0,
+      "global_length": 0,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 0,
+        "r1": 0,
+        "instructions": 10,
+        "hardware_hooks": 0
+      }
+    },
+    {
+      "case": "save",
+      "band": 0,
+      "flags": 1,
+      "global_length": 8,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 1073741824,
+        "r1": 536880560,
+        "instructions": 191,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "save",
+      "band": 0,
+      "flags": 2,
+      "global_length": 0,
+      "bank_address": 73984,
+      "bank_length": 272,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536874880,
+        "r1": 536880832,
+        "instructions": 2659,
+        "hardware_hooks": 3
+      }
+    },
+    {
+      "case": "save",
+      "band": 0,
+      "flags": 3,
+      "global_length": 8,
+      "bank_address": 73984,
+      "bank_length": 272,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536874880,
+        "r1": 536880832,
+        "instructions": 2831,
+        "hardware_hooks": 4
+      }
+    },
+    {
+      "case": "save",
+      "band": 1,
+      "flags": 0,
+      "global_length": 0,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 0,
+        "r1": 0,
+        "instructions": 10,
+        "hardware_hooks": 0
+      }
+    },
+    {
+      "case": "save",
+      "band": 1,
+      "flags": 1,
+      "global_length": 8,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 1073741824,
+        "r1": 536880560,
+        "instructions": 191,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "save",
+      "band": 1,
+      "flags": 2,
+      "global_length": 0,
+      "bank_address": 74496,
+      "bank_length": 272,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536875392,
+        "r1": 536880832,
+        "instructions": 2659,
+        "hardware_hooks": 3
+      }
+    },
+    {
+      "case": "save",
+      "band": 1,
+      "flags": 3,
+      "global_length": 8,
+      "bank_address": 74496,
+      "bank_length": 272,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536875392,
+        "r1": 536880832,
+        "instructions": 2831,
+        "hardware_hooks": 4
+      }
+    },
+    {
+      "case": "save",
+      "band": 2,
+      "flags": 0,
+      "global_length": 0,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 0,
+        "r1": 0,
+        "instructions": 10,
+        "hardware_hooks": 0
+      }
+    },
+    {
+      "case": "save",
+      "band": 2,
+      "flags": 1,
+      "global_length": 8,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 1073741824,
+        "r1": 536880560,
+        "instructions": 191,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "save",
+      "band": 2,
+      "flags": 2,
+      "global_length": 0,
+      "bank_address": 75008,
+      "bank_length": 272,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536875904,
+        "r1": 536880832,
+        "instructions": 2659,
+        "hardware_hooks": 3
+      }
+    },
+    {
+      "case": "save",
+      "band": 2,
+      "flags": 3,
+      "global_length": 8,
+      "bank_address": 75008,
+      "bank_length": 272,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536875904,
+        "r1": 536880832,
+        "instructions": 2831,
+        "hardware_hooks": 4
+      }
+    },
+    {
+      "case": "save",
+      "band": 3,
+      "flags": 0,
+      "global_length": 0,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 0,
+        "r1": 0,
+        "instructions": 10,
+        "hardware_hooks": 0
+      }
+    },
+    {
+      "case": "save",
+      "band": 3,
+      "flags": 1,
+      "global_length": 8,
+      "bank_address": null,
+      "bank_length": 0,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 1073741824,
+        "r1": 536880560,
+        "instructions": 191,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "save",
+      "band": 3,
+      "flags": 2,
+      "global_length": 0,
+      "bank_address": 75520,
+      "bank_length": 1040,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536877184,
+        "r1": 536881600,
+        "instructions": 9807,
+        "hardware_hooks": 6
+      }
+    },
+    {
+      "case": "save",
+      "band": 3,
+      "flags": 3,
+      "global_length": 8,
+      "bank_address": 75520,
+      "bank_length": 1040,
+      "unrelated_nor_bytes_unchanged": true,
+      "call": {
+        "r0": 536877184,
+        "r1": 536881600,
+        "instructions": 9979,
+        "hardware_hooks": 7
+      }
+    },
+    {
+      "case": "boot_bitmap",
+      "magic": "0x9abc5a5a",
+      "length": 1024,
+      "reserved_hex": "a55a",
+      "accepted": true,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 282624,
+          "length": 8
+        },
+        {
+          "op": "read",
+          "address": 282632,
+          "length": 1024
+        }
+      ],
+      "call": {
+        "r0": 1,
+        "r1": 553648128,
+        "instructions": 25,
+        "hardware_hooks": 2
+      }
+    },
+    {
+      "case": "boot_bitmap",
+      "magic": "0x00000000",
+      "length": 1024,
+      "reserved_hex": "a55a",
+      "accepted": false,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 282624,
+          "length": 8
+        }
+      ],
+      "call": {
+        "r0": 0,
+        "r1": 536886768,
+        "instructions": 17,
+        "hardware_hooks": 1
+      }
+    },
+    {
+      "case": "boot_bitmap",
+      "magic": "0x9abc5a5a",
+      "length": 1023,
+      "reserved_hex": "a55a",
+      "accepted": false,
+      "read_operations": [
+        {
+          "op": "read",
+          "address": 282624,
+          "length": 8
+        }
+      ],
+      "call": {
+        "r0": 0,
+        "r1": 536886768,
+        "instructions": 21,
+        "hardware_hooks": 1
+      }
+    }
+  ],
+  "passed": 24
+}

@@ -1,0 +1,318 @@
+{
+  "generated_on": "2026-11-26",
+  "scope": "Static bytes and packaged assets; no APK execution, no recovered function-to-constant references, no hardware capture",
+  "conclusion": {
+    "k8_model_route": "not_runtime_verified",
+    "service_uuid": "unresolved",
+    "write_uuid": "unresolved",
+    "notify_uuid": "unresolved",
+    "write_mode": "unresolved",
+    "wire_mode": "unresolved",
+    "response_checksum": "unresolved",
+    "mtu_payload": "unresolved"
+  },
+  "artifacts": [
+    {
+      "apk": "QUANSHENG-1.1.0-64.apk",
+      "apk_sha256": "b12adceddfe49c7df04eab3b8b6dbc336d7a6eb32a0df62bc75b7e978559d048",
+      "libapp_sha256": "8851fea2ebc54442d12062cba11673d3d8a0aad05dbcfd15009b657b21da7a4f",
+      "libapp_bytes": 12518288,
+      "libapp_elf_arch": "AArch64",
+      "dart_version": "3.12.1 (stable)",
+      "snapshot_hash": "ace654289f5abc240509fc941453ebc5",
+      "offset_unit": "hexadecimal byte offset in decompressed lib/arm64-v8a/libapp.so, not APK offset or code address",
+      "assets": {
+        "assets/flutter_assets/assets/products/data.json": {
+          "sha256": "efdaa8efdc8bfcef1d4d6a98a35ea7acffafcf4ab752d92106ad940c598354be",
+          "bytes": 189,
+          "deviceModel": null,
+          "product_names": [
+            "UV-K10 Pro"
+          ]
+        },
+        "assets/flutter_assets/assets/K8.json": {
+          "sha256": "5df044c86a2a2eee8fd4b709bf47c1a6cfeb030b30d23c3010b09f19593dfc5f",
+          "bytes": 175298,
+          "deviceModel": "K8"
+        },
+        "assets/flutter_assets/assets/K82.json": {
+          "sha256": "b1c681e7bdf8a2ebc50240e57e55be9d35dbd52785804509fee1ce78540092ba",
+          "bytes": 79511,
+          "deviceModel": "K82"
+        },
+        "assets/flutter_assets/assets/UV5.json": {
+          "sha256": "65e2117fbdf410ab6b99dc941fa4b42923ad8eed97de74651e339318843e279b",
+          "bytes": 189504,
+          "deviceModel": "UV5"
+        }
+      },
+      "uuid_constants": [
+        {
+          "offset": "0x4cbc6",
+          "value": "0000ffe2-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x5c968",
+          "value": "0000fff2-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x687b4",
+          "value": "0000fff1-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x6e0bf",
+          "value": "0000fff3-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x77186",
+          "value": "0000ffe1-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0xa5322",
+          "value": "0000ffe3-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0xadd43",
+          "value": "0000ff12-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0xe1ad3",
+          "value": "00002902-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        }
+      ],
+      "string_observations": [
+        {
+          "offset": "0x36747",
+          "value": "package:walkie_talkie_main/core/protocol/k8/k8_radio_protocol.dart"
+        },
+        {
+          "offset": "0x9f525",
+          "value": "K8RadioProtocol"
+        },
+        {
+          "offset": "0x6cfb6",
+          "value": "K82RadioProtocol"
+        },
+        {
+          "offset": "0xc6b9d",
+          "value": "BopttRadioProtocol"
+        },
+        {
+          "offset": "0xb07b0",
+          "value": "assets/K8.json"
+        },
+        {
+          "offset": "0xe1ec5",
+          "value": "assets/K82.json"
+        },
+        {
+          "offset": "0x86c33",
+          "value": "UV-K10 Pro"
+        },
+        {
+          "offset": "0x8c11f",
+          "value": "K8 GATT char "
+        },
+        {
+          "offset": "0xc5118",
+          "value": "K8 BLE MTU negotiated="
+        },
+        {
+          "offset": "0xcf881",
+          "value": "K8 BLE enabling notify on "
+        },
+        {
+          "offset": "0xdf482",
+          "value": "K8 BLE RX via "
+        },
+        {
+          "offset": "0xa51d0",
+          "value": "K8 BLE TX ("
+        },
+        {
+          "offset": "0x58b3d",
+          "value": "K8 BLE TX long ("
+        },
+        {
+          "offset": "0x88d91",
+          "value": "K8 CRC mismatch: expected=0x"
+        },
+        {
+          "offset": "0x69204",
+          "value": "K8 frame header must be AB CD"
+        },
+        {
+          "offset": "0x36b4b",
+          "value": "K8 frame tail must be DC BA"
+        },
+        {
+          "offset": "0x5990d",
+          "value": "requestMtu"
+        },
+        {
+          "offset": "0x98159",
+          "value": ", writeWithoutResponse: "
+        }
+      ]
+    },
+    {
+      "apk": "QUANSHENG-1.1.0-68.apk",
+      "apk_sha256": "0395fa0332d025da73a39aad49b01eaedfe59e8296f17df56fa937ff9b83b326",
+      "libapp_sha256": "c2cbc6245093682907109259fa1c888fa1f41c6505a48d113e0b5ca09fd5dabb",
+      "libapp_bytes": 12583824,
+      "libapp_elf_arch": "AArch64",
+      "dart_version": "3.12.1 (stable)",
+      "snapshot_hash": "ace654289f5abc240509fc941453ebc5",
+      "offset_unit": "hexadecimal byte offset in decompressed lib/arm64-v8a/libapp.so, not APK offset or code address",
+      "assets": {
+        "assets/flutter_assets/assets/products/data.json": {
+          "sha256": "efdaa8efdc8bfcef1d4d6a98a35ea7acffafcf4ab752d92106ad940c598354be",
+          "bytes": 189,
+          "deviceModel": null,
+          "product_names": [
+            "UV-K10 Pro"
+          ]
+        },
+        "assets/flutter_assets/assets/K8.json": {
+          "sha256": "7b8cb1c712251fd892101f3650571ecf8992d285f82b9518c730402e9909a2a5",
+          "bytes": 175876,
+          "deviceModel": "K8"
+        },
+        "assets/flutter_assets/assets/K82.json": {
+          "sha256": "fe4074226e77438cbf1f6e96ff970b904af068bc790a0e65992afd21dfbee2a6",
+          "bytes": 80991,
+          "deviceModel": "K82"
+        },
+        "assets/flutter_assets/assets/UV5.json": {
+          "sha256": "65e2117fbdf410ab6b99dc941fa4b42923ad8eed97de74651e339318843e279b",
+          "bytes": 189504,
+          "deviceModel": "UV5"
+        }
+      },
+      "uuid_constants": [
+        {
+          "offset": "0x4cc79",
+          "value": "0000ffe2-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x5ca26",
+          "value": "0000fff2-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x68872",
+          "value": "0000fff1-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x6e17d",
+          "value": "0000fff3-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0x77244",
+          "value": "0000ffe1-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0xa5435",
+          "value": "0000ffe3-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0xade7d",
+          "value": "0000ff12-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        },
+        {
+          "offset": "0xe1c8f",
+          "value": "00002902-0000-1000-8000-00805f9b34fb",
+          "role": "unresolved"
+        }
+      ],
+      "string_observations": [
+        {
+          "offset": "0x36797",
+          "value": "package:walkie_talkie_main/core/protocol/k8/k8_radio_protocol.dart"
+        },
+        {
+          "offset": "0x9f638",
+          "value": "K8RadioProtocol"
+        },
+        {
+          "offset": "0x6d074",
+          "value": "K82RadioProtocol"
+        },
+        {
+          "offset": "0xc6cfe",
+          "value": "BopttRadioProtocol"
+        },
+        {
+          "offset": "0xb08ea",
+          "value": "assets/K8.json"
+        },
+        {
+          "offset": "0xe2081",
+          "value": "assets/K82.json"
+        },
+        {
+          "offset": "0x86cfa",
+          "value": "UV-K10 Pro"
+        },
+        {
+          "offset": "0x8c1e6",
+          "value": "K8 GATT char "
+        },
+        {
+          "offset": "0xc5279",
+          "value": "K8 BLE MTU negotiated="
+        },
+        {
+          "offset": "0xcfa0c",
+          "value": "K8 BLE enabling notify on "
+        },
+        {
+          "offset": "0xdf61f",
+          "value": "K8 BLE RX via "
+        },
+        {
+          "offset": "0xa52e3",
+          "value": "K8 BLE TX ("
+        },
+        {
+          "offset": "0x58bfb",
+          "value": "K8 BLE TX long ("
+        },
+        {
+          "offset": "0x88e58",
+          "value": "K8 CRC mismatch: expected=0x"
+        },
+        {
+          "offset": "0x692c2",
+          "value": "K8 frame header must be AB CD"
+        },
+        {
+          "offset": "0x36bb0",
+          "value": "K8 frame tail must be DC BA"
+        },
+        {
+          "offset": "0x599cb",
+          "value": "requestMtu"
+        },
+        {
+          "offset": "0x98236",
+          "value": ", writeWithoutResponse: "
+        }
+      ]
+    }
+  ]
+}
