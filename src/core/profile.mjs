@@ -16,6 +16,7 @@ export const READ_REGIONS = Object.freeze([
   { id: 'bands', label: '频段定义原始区', address: 0x19000, length: 0xa8, writable: false },
   { id: 'dtmf', label: 'DTMF 联系人', address: 0x1a000, length: 384, writable: true },
   { id: 'five_tone', label: '5TONE 联系人', address: 0x1a800, length: 384, writable: true },
+  { id: 'power_flag', label: '官方项目功率标记', address: 0x1b000, length: 1, writable: false },
   // APK and CPS serialization use 272-byte slots with a 160-byte structure;
   // the CPS read path separately advances by sizeof(struct)=160. Preserve the
   // whole slot view; the stock consumer independently confirms the 272-byte
@@ -36,6 +37,8 @@ const bandSlices = base => [[0, 7], [8, 7], [0x10, 28], [0x30, 28], [0x50, 28], 
   .map(([offset, length]) => ({ id: 'bands', label: '频段定义', address: base + offset, length }));
 const writable = READ_REGIONS.filter(r => r.writable && !['band_groups', 'boot_image'].includes(r.id)).map(r => ({ ...r }));
 writable.push({ id: 'bands', label: '频段计划选择', address: 0x19008, length: 2 }, ...bandSlices(0x19010));
+writable.push({ id: 'bands', label: '空中写频重复次数', address: 0x19001, length: 1 },
+  { id: 'bands', label: '信道重配置策略', address: 0x1900a, length: 1 });
 for (let i = 0; i < 8; i++) {
   const base = 0x1c000 + i * 272;
   writable.push({ id: 'band_groups', label: '频段组', address: base, length: 4 },

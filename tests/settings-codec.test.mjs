@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readSetting, patchSetting, patchSettings, readContact, patchContactInImage, readMessage, patchMessageInImage,
   readUnresolvedBuffer, changedRegions, parseCoordinate, readStartupBitmap, patchStartupBitmap,
   pageBytesToPixels, pixelsToPageBytes } from '../src/core/settings-codec.mjs';
-import { SETTINGS_FIELDS } from '../src/core/schema.mjs';
+import { SETTINGS_FIELDS, SETTINGS_BY_ID } from '../src/core/schema.mjs';
 
 test('APRS CPS interval is one byte and never overwrites ACK', () => {
   const image = new Uint8Array(0x46000).fill(0xa5);
@@ -125,6 +125,40 @@ test('schema fields do not overlap except explicitly packed filter bits', () => 
       occupied.set(i, f);
     }
   }
+});
+
+test('advanced user controls edit exact verified bytes while board states remain read-only', () => {
+  const image = new Uint8Array(0x46000).fill(0xa5);
+  const changed = patchSettings(image, { air_programming_repeats: 4, channel_reconfiguration: 2 });
+  assert.deepEqual(changedRegions(image, changed).map(r => [r.offset, r.length]), [[0x19001, 1], [0x1900a, 1]]);
+  assert.equal(readSetting(changed, 'air_programming_repeats'), 4);
+  assert.equal(readSetting(changed, 'channel_reconfiguration'), 2);
+  for (const id of ['remote_killed_state', 'encrypted_call_flag', 'ultra_high_power_flag']) {
+    assert.equal(readSetting(changed, id), 0xa5);
+    assert.throws(() => patchSetting(image, id, 0), /read-only/);
+  }
+  assert.throws(() => patchSetting(image, 'air_programming_repeats', 0), /integer/);
+  assert.throws(() => patchSetting(image, 'air_programming_repeats', 5), /integer/);
+  assert.throws(() => patchSetting(image, 'channel_reconfiguration', 3), /integer/);
+});
+
+test('startup A/B selection exposes only exact CPS channel and seven VFO choices', () => {
+  const image = new Uint8Array(0x46000).fill(0xa5);
+  const changed = patchSettings(image, { display_a_raw: 998, display_b_raw: 1005 });
+  assert.equal(SETTINGS_BY_ID.display_a_raw.options[998].label, '信道 999');
+  assert.equal(SETTINGS_BY_ID.display_b_raw.options[999].label, 'B / VFO 频段 1');
+  assert.equal(readSetting(changed, 'display_b_raw'), 1005);
+  assert.deepEqual(changed.subarray(0x15004, 0x15010), image.subarray(0x15004, 0x15010));
+  assert.throws(() => patchSetting(image, 'display_b_raw', 1006), /integer/);
+});
+
+test('signaling separators are single symbols rather than arbitrary code strings', () => {
+  const image = new Uint8Array(0x46000);
+  assert.equal(readSetting(patchSetting(image, 'dtmf_separator', '#'), 'dtmf_separator'), '#');
+  assert.equal(readSetting(patchSetting(image, 'five_tone_group_code', 'E'), 'five_tone_group_code'), 'E');
+  assert.throws(() => patchSetting(image, 'dtmf_separator', '12'), /unsupported/);
+  assert.throws(() => patchSetting(image, 'five_tone_group_code', '*'), /unsupported/);
+  assert.equal(SETTINGS_BY_ID.dtmf_precarrier_raw.unit, 'ms');
 });
 
 test('unresolved special buffers are copied for inspection and marked read-only', () => {

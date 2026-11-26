@@ -5,6 +5,7 @@ import { hex, unhex, integer, formatMHz, parseMHz, visibleText } from './encodin
 import { readChannel, patchChannel, CHANNEL_COUNT } from './channel-codec.mjs';
 import { RADIO_CHIPS, RADIO_BANKS, decodeRadioBank, patchRadioStation } from './radio-codec.mjs';
 import { BAND_PLAN_COVERAGE, deriveChannelAttribute } from './band-codec.mjs';
+import { restoreCpsDatEnvelope } from './cps-project.mjs';
 
 export const MAX_FILE_BYTES = 24 * 1024 * 1024;
 export const PROJECT_FORMAT = 'uv-k10pro-web-project';
@@ -58,7 +59,8 @@ export async function importProject(text, name = '导入项目') {
   }
   // A source label is descriptive only. Never trust imported device/session IDs.
   return new MemoryWorkspace({ name, mode: 'offline', data, baseline, coverage,
-    provenance: { imported_format: PROJECT_FORMAT, claimed_source: String(input.source ?? '').slice(0, 40) }, importedDirty: true });
+    provenance: { imported_format: PROJECT_FORMAT, claimed_source: String(input.source ?? '').slice(0, 40),
+      ...await restoreCpsDatEnvelope(input.provenance) }, importedDirty: true });
 }
 
 export function importNor(data, name = 'NOR 转储') {

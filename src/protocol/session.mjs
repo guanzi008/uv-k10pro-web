@@ -2,7 +2,9 @@
 import { COMMAND, CHUNK_SIZE, SECTOR_SIZE, STREAMING_UPDATE_START, ProtocolError,
   bytes, uint, interval, FrameStreamParser, encodeFrame, encodeMessage, buildHello, parseHelloReply,
   buildRead, parseReadReply, buildWrite, parseWriteReply, buildReboot } from './frame.mjs';
-import { deriveAuthenticationResponse } from './auth.mjs';
+import { deriveAuthenticationResponse, derivePasswordKey, normalizePassword } from './auth.mjs';
+import { LIVE_COMMAND, APRS_SEND_TIMEOUT_MS, buildLocationSync, buildAprsSend,
+  parseAprsSendReply, parseAprsReceive } from './live-codec.mjs';
 
 export const SUPPORTED_DEVICE = Object.freeze({ model: 'UV-K10 Pro', firmware: '8.02.16', paramsVersion: 0 });
 const same = (a, b) => a.length === b.length && a.every((n, i) => n === b[i]);
@@ -24,17 +26,35 @@ export class ProgrammingSession {
       expectedParamsVersion: SUPPORTED_DEVICE.paramsVersion, timeoutMs: 2000,
       ...transport.protocolProfile, ...options };
     this.profile = { wireMode: this.options.wireMode ?? 'xor', responseChecksum: this.options.responseChecksum ?? 'placeholder',
-      maxFrameLength: this.options.maxFrameLength ?? 383 };
+      maxFrameLength: this.options.maxFrameLength ?? 383, lengthConvention: this.options.lengthConvention ?? 'cps-0.56' };
     if (!Number.isFinite(this.options.timeoutMs) || this.options.timeoutMs < 1)
       throw new TypeError('timeoutMs must be positive');
     this.state = 'idle'; this.identity = null; this.authenticated = false; this.pending = null; this.sequence = Promise.resolve();
-    this.diagnostics = { requests: 0, replies: 0, ignoredReplies: 0, invalidFrames: 0 };
+    this.diagnostics = { requests: 0, replies: 0, ignoredReplies: 0, invalidFrames: 0, events: 0, invalidEvents: 0, listenerErrors: 0 };
+    this.eventListeners = new Set(); this.baselineGeneration = 0;
     this.parser = new FrameStreamParser({ ...this.profile, direction: 'response', onError: error => {
       this.diagnostics.invalidFrames++; this._fault(error);
     } });
   }
   get connected() { return this.state === 'connected'; }
   get writeEnabled() { return Boolean(this.connected && this.identity?.writeEnabled); }
+  onEvent(listener) {
+    if (typeof listener !== 'function') throw new TypeError('Event listener must be a function');
+    this.eventListeners.add(listener); return () => this.eventListeners.delete(listener);
+  }
+  _receiveEvent(message) {
+    if (message.command !== LIVE_COMMAND.APRS_RECEIVE) return false;
+    let event;
+    try { event = parseAprsReceive(message); }
+    catch { this.diagnostics.invalidEvents++; return true; }
+    this.diagnostics.events++;
+    for (const listener of this.eventListeners) {
+      try {
+        Promise.resolve(listener(event)).catch(() => { this.diagnostics.listenerErrors++; });
+      } catch { this.diagnostics.listenerErrors++; }
+    }
+    return true;
+  }
   _enqueue(operation) {
     const result = this.sequence.then(operation); this.sequence = result.catch(() => {}); return result;
   }
@@ -67,6 +87,9 @@ export class ProgrammingSession {
         }
         for (const message of this.parser.push(chunk)) {
           if (!['connecting', 'connected'].includes(this.state)) return;
+          // An unsolicited APRS event must never satisfy or invalidate an
+          // in-flight READ/WRITE/AUTH/HELLO/APRS result transaction.
+          if (this._receiveEvent(message)) continue;
           if (!this.pending) { this.diagnostics.ignoredReplies++; continue; }
           try {
             const value = this.pending.validate(message);
@@ -108,19 +131,45 @@ export class ProgrammingSession {
         this.sessionToken = globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
       }
       uint(this.sessionToken, 32, 'session token');
-      const hello = buildHello(this.sessionToken, utcSeconds);
+      const hello = buildHello(this.sessionToken, utcSeconds, this.profile);
       this.state = 'connecting'; this.readerTask = this._reader();
       const found = await this._exchange(hello, parseHelloReply, { signal });
-      const versionMatched = this.options.selectedModel === SUPPORTED_DEVICE.model &&
-        found.firmware === SUPPORTED_DEVICE.firmware && found.paramsVersion === SUPPORTED_DEVICE.paramsVersion &&
-        found.firmware === this.options.expectedFirmware && found.paramsVersion === this.options.expectedParamsVersion;
-      this.challenge = found.challenge.slice();
-      this.identity = Object.freeze({ ...found, selectedModel: this.options.selectedModel,
-        modelReportedByDevice: null, versionMatched, writeEnabled: versionMatched && found.passwordValid === 0,
-        authenticated: false, authenticationSupported: versionMatched && Boolean(globalThis.crypto?.subtle),
-        hardwareVerified: false, rtcSynchronizedTo: utcSeconds,
-        note: 'HELLO has no unique product identifier; physical model selection remains necessary.' });
+      this._acceptHello(found, utcSeconds);
       this.state = 'connected'; return this.identity;
+    });
+  }
+  _acceptHello(found, utcSeconds) {
+    const versionMatched = this.options.selectedModel === SUPPORTED_DEVICE.model &&
+      found.firmware === SUPPORTED_DEVICE.firmware && found.paramsVersion === SUPPORTED_DEVICE.paramsVersion &&
+      found.firmware === this.options.expectedFirmware && found.paramsVersion === this.options.expectedParamsVersion;
+    this.challenge = found.challenge.slice(); this.authenticated = false; this.baselineGeneration++;
+    this.identity = Object.freeze({ ...found, selectedModel: this.options.selectedModel,
+      modelReportedByDevice: null, versionMatched, writeEnabled: versionMatched && found.passwordValid === 0,
+      authenticated: false, authenticationSupported: versionMatched && Boolean(globalThis.crypto?.subtle),
+      hardwareVerified: false, rtcSynchronizedTo: utcSeconds, baselineGeneration: this.baselineGeneration,
+      note: 'HELLO has no unique product identifier; physical model selection remains necessary.' });
+  }
+  /** Explicit one-shot App location/RTC sync. A HELLO rotates the challenge;
+   * callers must discard earlier write plans and reread their device baseline. */
+  synchronizeLocation({ latitude, longitude, altitudeMeters = 0,
+    utcSeconds = Math.floor(Date.now() / 1000), signal } = {}) {
+    return this._enqueue(async () => {
+      throwIfAborted(signal); this._requireWriteAccess();
+      const body = buildLocationSync(this.sessionToken, { utcSeconds, latitude, longitude, altitudeMeters });
+      this.authenticated = false;
+      this.identity = Object.freeze({ ...this.identity, authenticated: false, writeEnabled: false });
+      const found = await this._exchange(body, parseHelloReply, { signal });
+      this._acceptHello(found, utcSeconds);
+      return { synchronized: true, baselineInvalidated: true, identity: this.identity,
+        authenticationRequired: found.passwordValid !== 0, rfTransmissionRequested: false };
+    });
+  }
+  /** Sends once, waits for the device result, and never claims an RF delivery ACK. */
+  sendAprs(packet, { signal } = {}) {
+    const body = buildAprsSend(bytes(packet).slice());
+    return this._enqueue(async () => {
+      throwIfAborted(signal); this._requireWriteAccess();
+      return this._exchange(body, parseAprsSendReply, { signal, timeoutMs: APRS_SEND_TIMEOUT_MS });
     });
   }
   readMemory(address, length, options = {}) {
@@ -129,11 +178,13 @@ export class ProgrammingSession {
   }
   /** One normal user-supplied-password attempt. Never guesses or automatically retries. */
   authenticate({ password, signal } = {}) {
-    return this._enqueue(async () => {
+    return this._enqueue(() => this._authenticatePassword(password, { signal }));
+  }
+  async _authenticatePassword(password, { signal, force = false } = {}) {
       throwIfAborted(signal); this._requireConnected();
       if (typeof password !== 'string') throw new TypeError('password must be a string');
       if (!this.identity.versionMatched) throw new ProtocolError('Normal authentication is validated only for the selected stock UV-K10 Pro profile', 'UNKNOWN_DEVICE');
-      if (this.identity.passwordValid === 0 || this.authenticated) return this.identity;
+      if (this.identity.passwordValid === 0 || (this.authenticated && !force)) return this.identity;
       if (this.identity.passwordValid !== 1) throw new ProtocolError('Unrecognized password/access state; no authentication attempt sent', 'UNKNOWN_ACCESS_STATE');
       const response = await deriveAuthenticationResponse(password, this.challenge);
       try {
@@ -151,7 +202,84 @@ export class ProgrammingSession {
         this.identity = Object.freeze({ ...this.identity, authenticated: true, writeEnabled: this.identity.versionMatched });
         return this.identity;
       } finally { response.fill(0); }
+  }
+
+  /** Separate, ordinary flag=0 startup-code operation. File imports and generic
+   * writes cannot enter this path. No engineer flag or lock bypass is supplied. */
+  changeStartupPassword({ password, disable = false, expectedCurrent, signal } = {}) {
+    return this._enqueue(async () => {
+      throwIfAborted(signal); this._requireWriteAccess();
+      if (typeof disable !== 'boolean' || (!disable && (typeof password !== 'string' || !/^\d{1,6}$/.test(password))) ||
+          (disable && password !== undefined && password !== ''))
+        throw new ProtocolError('Startup password must be 1–6 decimal digits, or explicitly disabled', 'INVALID_STARTUP_PASSWORD');
+      if (expectedCurrent !== undefined) uint(expectedCurrent, 32, 'expected startup value');
+      if (this.identity.startLockFlag !== 0)
+        throw new ProtocolError('Device startup lock blocks the normal startup-password write; no override flag was sent', 'STARTUP_PASSWORD_LOCKED');
+      const desired = new Uint8Array(4);
+      new DataView(desired.buffer).setUint32(0, disable ? 0xffffffff : Number(password), true);
+      try {
+        return await this._changeCredentialBytes(0x17000, desired, { signal, kind: 'startup', disabled: disable,
+          expectedCurrent });
+      } finally { desired.fill(0); }
     });
+  }
+
+  /** Replace or clear the ordinary programming password. The existing password
+   * is verified even if an earlier operation authenticated this same session. */
+  changeProgrammingPassword({ currentPassword = '', newPassword, confirmPassword, signal } = {}) {
+    return this._enqueue(async () => {
+      throwIfAborted(signal); this._requireConnected();
+      if (!this.identity.versionMatched) throw new ProtocolError('Password changes require the selected stock UV-K10 Pro profile', 'UNKNOWN_DEVICE');
+      const desiredText = normalizePassword(newPassword), confirmation = normalizePassword(confirmPassword);
+      normalizePassword(currentPassword);
+      if (desiredText !== confirmation) throw new ProtocolError('New password and confirmation differ', 'PASSWORD_CONFIRMATION_MISMATCH');
+      if (![0, 1].includes(this.identity.passwordValid))
+        throw new ProtocolError('Unrecognized password/access state; no password change attempted', 'UNKNOWN_ACCESS_STATE');
+      if (this.identity.passwordValid === 1) await this._authenticatePassword(currentPassword, { signal, force: true });
+      this._requireWriteAccess();
+      const disabled = desiredText.length === 0;
+      const desired = disabled ? new Uint8Array(16).fill(255) : derivePasswordKey(desiredText);
+      try {
+        return await this._changeCredentialBytes(0x18000, desired, { signal, kind: 'programming', disabled,
+          verifyPassword: disabled ? undefined : desiredText });
+      } finally { desired.fill(0); }
+    });
+  }
+
+  async _changeCredentialBytes(address, desired, { signal, kind, disabled, expectedCurrent, verifyPassword } = {}) {
+    this._requireWriteAccess();
+    if (!((kind === 'startup' && address === 0x17000 && desired.length === 4) ||
+          (kind === 'programming' && address === 0x18000 && desired.length === 16)))
+      throw new ProtocolError('Unsupported credential operation', 'INVALID_CREDENTIAL_OPERATION');
+    const probe = await this._accessProbe(address, desired.length, signal);
+    const original = await this._readMemory(address, desired.length, { signal });
+    let modified = false;
+    try {
+      if (expectedCurrent !== undefined && new DataView(original.buffer, original.byteOffset, 4).getUint32(0, true) !== expectedCurrent)
+        throw new ProtocolError('Startup password storage changed since the baseline read; nothing was written', 'STALE_CREDENTIAL_BASELINE');
+      await this._checkProbe(probe, signal);
+      const changed = !same(original, desired);
+      if (changed) {
+        modified = true;
+        await this._exchange(buildWrite(address, desired, this.sessionToken, { ...this.profile, flag: 0 }),
+          message => parseWriteReply(message, address), { signal });
+        const actual = await this._readMemory(address, desired.length, { signal });
+        try {
+          if (!same(actual, desired)) throw new ProtocolError('Credential write did not match readback; outcome requires reconnecting and checking the device', 'CREDENTIAL_VERIFY_MISMATCH');
+        } finally { actual.fill(0); }
+        await this._checkProbe(probe, signal);
+      }
+      if (kind === 'programming') {
+        this.identity = Object.freeze({ ...this.identity, passwordValid: disabled ? 0 : 1 });
+        if (!disabled) await this._authenticatePassword(verifyPassword, { signal, force: true });
+        await this._checkProbe(probe, signal);
+      }
+      await this.close();
+      return { verified: true, changed, kind, disabled, reconnectRequired: true };
+    } catch (error) {
+      if (modified) { error.mayHaveModifiedDevice = true; this._fault(error); }
+      throw error;
+    } finally { original.fill(0); }
   }
   async _readMemory(address, length, { signal, onProgress } = {}) {
     const data = new Uint8Array(length);
@@ -215,7 +343,7 @@ export class ProgrammingSession {
             // High sectors must be reconstructed in full, in ascending order, after any erase.
             if (plan.high || !same(block, plan.original.subarray(done, done + count))) {
               modified = true;
-              await this._exchange(buildWrite(target, block, this.sessionToken), message => parseWriteReply(message, target), { signal });
+              await this._exchange(buildWrite(target, block, this.sessionToken, this.profile), message => parseWriteReply(message, target), { signal });
               const actual = await this._readMemory(target, count, { signal });
               if (!same(actual, block)) throw new ProtocolError('Device ACKed but readback differs; a protected/gated write may have been skipped', 'VERIFY_MISMATCH', { address: target });
               await this._checkProbe(probe, signal);
@@ -259,6 +387,7 @@ export class ProgrammingSession {
   }
   async close() {
     this.state = 'closed';
+    this.eventListeners.clear();
     this.pending?.reject(new ProtocolError('Session closed', 'DISCONNECTED'));
     this.closePromise ??= Promise.resolve().then(() => this.transport.close());
     await this.closePromise;

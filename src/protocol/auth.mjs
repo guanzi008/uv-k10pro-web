@@ -24,13 +24,21 @@ export function reverseWords(value) {
   return output;
 }
 
-/** Compute the exact CPS ss.dll MAC(119) path, including its unusual final compression. */
-export function computePasswordDigest(password) {
+/** Apply the CPS .NET whitespace and UTF-8 length contract. */
+export function normalizePassword(password) {
   if (typeof password !== 'string') throw new TypeError('password must be a string');
   // .NET 4 String.Trim whitespace set (do not silently trim U+FEFF as JavaScript trim does).
   const normalized = password.replace(/^[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g, '');
+  const encoded = new TextEncoder().encode(normalized);
+  const tooLong = encoded.length > 32; encoded.fill(0);
+  if (tooLong) throw new ProtocolError('CPS password must fit in 32 UTF-8 bytes after trimming', 'INVALID_PASSWORD');
+  return normalized;
+}
+
+/** Compute the exact CPS ss.dll MAC(119) path, including its unusual final compression. */
+export function computePasswordDigest(password) {
+  const normalized = normalizePassword(password);
   const passwordBytes = new TextEncoder().encode(normalized);
-  if (passwordBytes.length > 32) throw new ProtocolError('CPS password must fit in 32 UTF-8 bytes after trimming', 'INVALID_PASSWORD');
   const block = new Uint8Array(128).fill(0x5a); block.fill(0, 0, 32);
   block.set(passwordBytes); passwordBytes.fill(0);
   block.set(new TextEncoder().encode('xiaoxiao'), 32); block.set(SALT, 64);
@@ -71,15 +79,23 @@ export function derivePasswordKey(password) {
 }
 
 /** Returns the exact 16-byte AUTH payload; no password or derived key is persisted. */
-export async function deriveAuthenticationResponse(password, challenge, { subtle = globalThis.crypto?.subtle } = {}) {
+export async function deriveAuthenticationResponseFromKey(key, challenge, { subtle = globalThis.crypto?.subtle } = {}) {
+  key = bytes(key);
+  if (key.length !== 16) throw new ProtocolError('Expected exactly 16 derived key bytes', 'INVALID_PASSWORD_KEY');
   challenge = bytes(challenge);
   if (challenge.length !== 16) throw new ProtocolError('Expected exactly 16 challenge bytes from HELLO', 'INVALID_CHALLENGE');
   if (!subtle) throw new ProtocolError('Web Crypto is unavailable; use a supported secure browser context', 'CRYPTO_UNAVAILABLE');
-  const key = derivePasswordKey(password), aesKey = reverseWords(key); key.fill(0);
+  const aesKey = reverseWords(key);
   try {
     const imported = await subtle.importKey('raw', aesKey, { name: 'AES-CBC' }, false, ['encrypt']);
     const cipher = new Uint8Array(await subtle.encrypt({ name: 'AES-CBC', iv: new Uint8Array(16) }, imported, reverseWords(challenge)));
     // .NET Rijndael CBC/PKCS7 and Web Crypto both add a padding block. CPS sends only block 0.
     const response = reverseWords(cipher.subarray(0, 16)); cipher.fill(0); return response;
   } finally { aesKey.fill(0); }
+}
+
+export async function deriveAuthenticationResponse(password, challenge, options = {}) {
+  const key = derivePasswordKey(password);
+  try { return await deriveAuthenticationResponseFromKey(key, challenge, options); }
+  finally { key.fill(0); }
 }

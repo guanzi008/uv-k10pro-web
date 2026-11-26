@@ -132,56 +132,181 @@ export class ByteQueue {
   }
 }
 
-function validateBleProfile(profile) {
+function bleUuid(value, key) {
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  for (const key of ['serviceUuid', 'writeUuid', 'notifyUuid'])
-    if (!uuid.test(profile[key] ?? '')) throw new ProtocolError(`Explicit canonical ${key} required; no inferred UV-K10 Pro BLE UUID`, 'BLE_PROFILE_REQUIRED');
+  if (typeof value !== 'string' || !uuid.test(value.trim()))
+    throw new ProtocolError(`Explicit canonical ${key} required`, 'BLE_PROFILE_REQUIRED');
+  return value.trim().toLowerCase();
+}
+
+/** Whitelist settings, so UI state, BluetoothDevice handles and passwords cannot be exported. */
+export function normalizeBleProfile(profile) {
+  if (!profile || typeof profile !== 'object' || Array.isArray(profile))
+    throw new ProtocolError('BLE profile must be an object', 'BLE_PROFILE_REQUIRED');
+  const result = {};
+  for (const key of ['serviceUuid', 'writeUuid', 'notifyUuid']) result[key] = bleUuid(profile[key], key);
   if (!['withResponse', 'withoutResponse'].includes(profile.writeMode))
     throw new ProtocolError('Explicit BLE writeMode required', 'BLE_PROFILE_REQUIRED');
-  if (!['plain', 'xor'].includes(profile.wireMode) || !['placeholder', 'crc16-x25'].includes(profile.responseChecksum))
+  if (!['plain', 'xor'].includes(profile.wireMode) || !['placeholder', 'crc16-x25', 'crc16-x25-or-placeholder'].includes(profile.responseChecksum))
     throw new ProtocolError('Explicit BLE wireMode and responseChecksum required', 'BLE_PROFILE_REQUIRED');
   const size = profile.mtuPayload ?? 20;
   if (!Number.isInteger(size) || size < 1 || size > 244) throw new ProtocolError('BLE payload size must be 1..244', 'BLE_PROFILE_REQUIRED');
-  return { ...profile, mtuPayload: size };
+  const writeStrategy = profile.writeStrategy ?? 'chunked', interWriteDelayMs = profile.interWriteDelayMs ?? 0;
+  const lengthConvention = profile.lengthConvention ?? 'cps-0.56';
+  if (!['chunked', 'whole-frame'].includes(writeStrategy) ||
+      (writeStrategy === 'whole-frame' && profile.writeMode !== 'withResponse'))
+    throw new ProtocolError('BLE whole-frame writes require withResponse', 'BLE_PROFILE_REQUIRED');
+  if (!Number.isInteger(interWriteDelayMs) || interWriteDelayMs < 0 || interWriteDelayMs > 1000)
+    throw new ProtocolError('BLE frame delay must be 0..1000 ms', 'BLE_PROFILE_REQUIRED');
+  if (!['cps-0.56', 'android-k8'].includes(lengthConvention))
+    throw new ProtocolError('Explicit K8 request length convention required', 'BLE_PROFILE_REQUIRED');
+  return Object.freeze({ ...result, writeMode: profile.writeMode, wireMode: profile.wireMode,
+    responseChecksum: profile.responseChecksum, mtuPayload: size, writeStrategy, interWriteDelayMs, lengthConvention });
 }
 
-/** Configurable experimental adapter. Multi-model APK strings do not establish a K10 GATT profile. */
+/** APK 1.1.0-68 AOT call/data flow, not a hardware acceptance claim. See docs/ble-profile.md. */
+export const DEFAULT_K8_BLE_PROFILE = normalizeBleProfile({
+  serviceUuid: '0000ff12-0000-1000-8000-00805f9b34fb',
+  writeUuid: '0000fff2-0000-1000-8000-00805f9b34fb',
+  notifyUuid: '0000fff3-0000-1000-8000-00805f9b34fb',
+  writeMode: 'withResponse', wireMode: 'plain', responseChecksum: 'crc16-x25-or-placeholder',
+  writeStrategy: 'whole-frame', interWriteDelayMs: 120, mtuPayload: 20, lengthConvention: 'android-k8',
+});
+
+const BLE_PROFILE_FORMAT = 'uv-k10pro-ble-profile';
+const BLE_MODEL = 'UV-K10-PRO-K8';
+
+/** A connection configuration is portable; it does not certify the attached radio's model. */
+export function serializeBleProfile(profile) {
+  return JSON.stringify({ format: BLE_PROFILE_FORMAT, version: 1, model: BLE_MODEL,
+    profile: normalizeBleProfile(profile) }, null, 2) + '\n';
+}
+
+export function parseBleProfile(text) {
+  if (typeof text !== 'string' || text.length > 16384 || new TextEncoder().encode(text).length > 16384)
+    throw new ProtocolError('BLE profile must be a JSON file no larger than 16 KiB', 'INVALID_BLE_PROFILE_FILE');
+  let document;
+  try { document = JSON.parse(text.replace(/^\uFEFF/, '')); }
+  catch { throw new ProtocolError('Invalid BLE profile JSON', 'INVALID_BLE_PROFILE_FILE'); }
+  if (!document || document.format !== BLE_PROFILE_FORMAT || document.version !== 1 || document.model !== BLE_MODEL)
+    throw new ProtocolError('BLE profile format, version or radio model does not match UV-K10 Pro / K8', 'INVALID_BLE_PROFILE_FILE');
+  return normalizeBleProfile(document.profile);
+}
+
+const GATT_PROPERTIES = Object.freeze(['broadcast', 'read', 'writeWithoutResponse', 'write',
+  'notify', 'indicate', 'authenticatedSignedWrites', 'reliableWrite', 'writableAuxiliaries']);
+
+/** Inspect exactly the user-supplied service; never probe candidate UUIDs or send K8 commands. */
+export async function discoverBleCharacteristics({ serviceUuid, bluetooth = globalThis.navigator?.bluetooth,
+  device: grantedDevice } = {}) {
+  serviceUuid = bleUuid(serviceUuid, 'serviceUuid');
+  if (!grantedDevice && !bluetooth) throw unavailable('Web Bluetooth');
+  // A peripheral need not advertise every service. The chooser is still explicit,
+  // and optionalServices grants access only to this one supplied service.
+  const device = grantedDevice ?? await bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [serviceUuid] });
+  if (!device?.gatt) throw new ProtocolError('Selected Bluetooth device has no GATT server', 'BLE_GATT_UNAVAILABLE');
+  if (device.gatt.connected)
+    throw new ProtocolError('Disconnect the active Bluetooth session before inspecting its service', 'BLE_DISCOVERY_BUSY');
+  try {
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(serviceUuid);
+    const characteristics = await service.getCharacteristics();
+    return { device, serviceUuid, characteristics: characteristics.map(characteristic => ({
+      uuid: bleUuid(characteristic.uuid, 'characteristic UUID'),
+      properties: Object.fromEntries(GATT_PROPERTIES.map(key => [key, characteristic.properties?.[key] === true])),
+    })) };
+  } finally {
+    // No notification subscription, characteristic read, HELLO, or data write is
+    // performed here. Reconnection must acquire fresh service/characteristic objects.
+    if (device.gatt.connected) device.gatt.disconnect();
+  }
+}
+
+function checkBleCharacteristics(tx, rx, profile) {
+  const writeProperty = profile.writeMode === 'withResponse' ? 'write' : 'writeWithoutResponse';
+  const writeMethod = profile.writeMode === 'withResponse' ? 'writeValueWithResponse' : 'writeValueWithoutResponse';
+  if (tx?.properties?.[writeProperty] !== true || typeof tx?.[writeMethod] !== 'function')
+    throw new ProtocolError(`Selected BLE characteristic does not support ${profile.writeMode}`, 'BLE_CHARACTERISTIC_MISMATCH');
+  if (!(rx?.properties?.notify === true || rx?.properties?.indicate === true) || typeof rx?.startNotifications !== 'function')
+    throw new ProtocolError('Selected BLE receive characteristic does not support notifications or indications', 'BLE_CHARACTERISTIC_MISMATCH');
+}
+
+/** Model-scoped APK preset or explicit profile; GATT properties are rechecked on connection. */
 export class WebBluetoothTransport {
   constructor(device, profile) {
-    this.profile = validateBleProfile(profile); this.device = device; this.kind = 'ble'; this.opened = false;
-    this.protocolProfile = Object.freeze({ wireMode: this.profile.wireMode, responseChecksum: this.profile.responseChecksum, maxFrameLength: 199 });
-    this.queue = new ByteQueue();
+    this.profile = normalizeBleProfile(profile); this.device = device; this.kind = 'ble'; this.opened = false;
+    this.protocolProfile = Object.freeze({ wireMode: this.profile.wireMode, responseChecksum: this.profile.responseChecksum,
+      lengthConvention: this.profile.lengthConvention, maxFrameLength: 199 });
+    this.queue = new ByteQueue(); this.writeSequence = Promise.resolve(); this.connectionGeneration = 0;
   }
-  static async request({ bluetooth = globalThis.navigator?.bluetooth, ...input } = {}) {
-    const profile = validateBleProfile(input); if (!bluetooth) throw unavailable('Web Bluetooth');
-    const device = await bluetooth.requestDevice({ filters: [{ services: [profile.serviceUuid] }], optionalServices: [profile.serviceUuid] });
+  static async request({ bluetooth = globalThis.navigator?.bluetooth, device: grantedDevice, ...input } = {}) {
+    const profile = normalizeBleProfile(input); if (!grantedDevice && !bluetooth) throw unavailable('Web Bluetooth');
+    // The official K8 App scans without service filters. A GATT service need
+    // not appear in advertisements; grant only this explicit service, then
+    // check its exact characteristics instead of guessing other services.
+    const device = grantedDevice ?? await bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [profile.serviceUuid] });
     const transport = new WebBluetoothTransport(device, profile); await transport.open(); return transport;
   }
   async open() {
     if (this.opened) return this;
-    this.disconnected = () => { this.opened = false; this.queue.close(disconnected()); };
+    if (!this.device?.gatt) throw new ProtocolError('Selected Bluetooth device has no GATT server', 'BLE_GATT_UNAVAILABLE');
+    if (this.queue.closed) this.queue = new ByteQueue();
+    this.connectionGeneration++;
+    this.disconnected = () => { this.connectionGeneration++; this.opened = false; this.queue.close(disconnected()); };
     this.device.addEventListener('gattserverdisconnected', this.disconnected);
     try {
       this.server = await this.device.gatt.connect();
       const service = await this.server.getPrimaryService(this.profile.serviceUuid);
       this.tx = await service.getCharacteristic(this.profile.writeUuid);
       this.rx = this.profile.writeUuid === this.profile.notifyUuid ? this.tx : await service.getCharacteristic(this.profile.notifyUuid);
+      checkBleCharacteristics(this.tx, this.rx, this.profile);
       this.notify = event => this.queue.push(event.target.value);
       this.rx.addEventListener('characteristicvaluechanged', this.notify);
-      await this.rx.startNotifications(); this.opened = true; return this;
+      await this.rx.startNotifications();
+      if (!this.device.gatt.connected || this.queue.closed) throw disconnected();
+      this.opened = true; return this;
     } catch (error) { await this.close(); throw error; }
   }
   async read() { return this.queue.read(); }
   async write(value) {
-    assertOpen(this); const data = bytes(value), { mtuPayload, writeMode } = this.profile;
-    for (let i = 0; i < data.length; i += mtuPayload) {
-      assertOpen(this); const chunk = data.slice(i, i + mtuPayload);
-      if (writeMode === 'withResponse') await this.tx.writeValueWithResponse(chunk);
-      else await this.tx.writeValueWithoutResponse(chunk);
+    assertOpen(this); const data = bytes(value).slice();
+    if (this.profile.writeStrategy === 'whole-frame' && data.length > 512)
+      throw new ProtocolError('BLE characteristic values cannot exceed 512 bytes', 'FRAME_TOO_LONG');
+    // Replies can arrive before the platform write promise completes. Preserve
+    // frame ordering and the APK's post-frame pacing across that race.
+    const generation = this.connectionGeneration;
+    const operation = this.writeSequence.then(() => this._write(data, generation));
+    this.writeSequence = operation.catch(() => {}); return operation;
+  }
+  async _write(data, generation) {
+    const checkConnection = () => {
+      assertOpen(this);
+      if (generation !== this.connectionGeneration) throw disconnected();
+    };
+    checkConnection(); if (!data.length) return;
+    const { mtuPayload, writeMode, writeStrategy, interWriteDelayMs } = this.profile;
+    try {
+      if (writeStrategy === 'whole-frame') {
+        // Web Bluetooth has no requestMtu/allowLongWrite control. Hand the whole
+        // value to the browser; do not retry failed long writes as byte chunks.
+        await this.tx.writeValueWithResponse(data);
+      } else {
+        for (let i = 0; i < data.length; i += mtuPayload) {
+          checkConnection(); const chunk = data.slice(i, i + mtuPayload);
+          if (writeMode === 'withResponse') await this.tx.writeValueWithResponse(chunk);
+          else await this.tx.writeValueWithoutResponse(chunk);
+        }
+      }
+      if (interWriteDelayMs) await new Promise(resolve => setTimeout(resolve, interWriteDelayMs));
+    } catch (error) {
+      // A failed value write may have had a partial effect. Do not continue a
+      // queued stream after it, or silently change framing/packet boundaries.
+      if (generation === this.connectionGeneration) await this.close();
+      throw error;
     }
   }
   async close() {
-    this.opened = false; this.queue.close();
+    this.connectionGeneration++; this.opened = false; this.queue.close();
     this.rx?.removeEventListener('characteristicvaluechanged', this.notify);
     this.device.removeEventListener('gattserverdisconnected', this.disconnected);
     // Disconnect first to cancel in-flight GATT work; subscriptions end with the connection.

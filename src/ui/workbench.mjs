@@ -48,6 +48,7 @@ const VIEW_META = {
   scans:['扫描列表','SCAN COLLECTIONS','整理扫描成员与优先信道，便于在不同场景中快速切换。'],
   contacts:['信令联系人','SIGNALING CONTACTS','分别整理 DTMF、五音等信令联系人，保留其编码与记录类型。'],
   messages:['消息与文本','MESSAGES & TEXT','编辑对应数据区中的文本记录，按字段编码和长度保存。'],
+  live:['APRS 实时收发','LIVE APRS','预览消息后单次发送，查看设备上报，并按需同步位置和时间。'],
   backup:['备份与差分','BACKUP & REVIEW','保存可恢复的工作区，并逐项核对本次修改涉及的字节。'],
   logs:['连接日志','CONNECTION DIAGNOSTICS','查看会话、读写进度与校验结果，定位设备连接问题。'],
 };
@@ -119,18 +120,21 @@ export function mountWorkbench({onAction} = {}) {
   const abort = new AbortController();
   const timers = new Set();
   const host = byId('view-host');
-  const dialogs = ['connection-dialog','authentication-dialog','editor-dialog','preview-dialog','confirm-dialog','help-dialog'].map(byId);
+  const dialogs = ['connection-dialog','authentication-dialog','credentials-dialog','editor-dialog','preview-dialog','confirm-dialog','help-dialog'].map(byId);
   const state = {
     view:'channels',query:'',channelFilter:'active',modeFilter:'all',page:0,pageSize:25,
     sort:{key:'number',direction:1},selected:new Set(),radioQueries:{si4732:'',bk1080:''},
     radioBands:{si4732:'all',bk1080:'all'},radioPages:{si4732:0,bk1080:0},
     settingsGroup:'',settingsQuery:'',settingsDrafts:new Map(),busy:false,busyLabel:'',logFilter:'all',
     recordQueries:{vfo:'',contacts:'',messages:''},recordPages:{vfo:0,contacts:0,messages:0},
+    aprsDraft:{destination:'',destinationSsid:'0',source:'',sourceSsid:'0',addressee:'',path:'',text:''},
+    locationDraft:{latitude:'',longitude:'',altitudeMeters:'0'},locationNote:'',
   };
   let model = {
     workspace:{id:'empty',name:'尚未载入',mode:'empty',bytes:0,dirtyBytes:0,modifiedCount:0,complete:false},
     connection:{state:'disconnected',label:'UV-K10 Pro',transport:'',version:'',writable:false},
     channels:[],vfos:[],contacts:[],messages:[],radio:{si4732:[],bk1080:[]},settingsGroups:[],scans:[],changes:[],logs:[],
+    live:{canOperate:false,canLocate:false,preview:null,events:[],defaults:{}},
     capabilities:{serial:'serial' in navigator,usb:'usb' in navigator,ble:'bluetooth' in navigator,features:[]},
   };
   let workspaceId = 'empty';
@@ -151,7 +155,7 @@ export function mountWorkbench({onAction} = {}) {
     } catch (error) {
       // Authentication failures must never echo submitted credentials, even
       // if a controller or transport accidentally embeds them in an error.
-      const message = type==='authenticate' ? '认证未完成，请检查设备密码与连接状态后重试。' : error instanceof Error ? error.message : String(error);
+      const message = type==='authenticate' ? '认证未完成，请检查设备密码与连接状态后重试。' : type==='change-credentials' ? '密码修改未完成，请检查输入并重新连接核对设备状态。' : error instanceof Error ? error.message : String(error);
       toast(message,'error');
       return {ok:false,error:message};
     }
@@ -266,7 +270,7 @@ export function mountWorkbench({onAction} = {}) {
     const pageActions=byId('page-actions');
     pageActions.replaceChildren();
     if(state.view==='channels') {
-      pageActions.append(button('导出 CSV',()=>invoke('export',{format:'csv'}),{iconName:'table',disabled:state.busy||!hasWorkspace()}),
+      pageActions.append(button('新建信道表',()=>invoke('new-channels'),{iconName:'file',disabled:state.busy}),button('导出 CSV',()=>invoke('export',{format:'csv'}),{iconName:'table',disabled:state.busy||!hasWorkspace()}),
         button('编辑空信道',()=>invoke('add-channel'),{iconName:'plus',disabled:state.busy||!hasWorkspace()}));
     } else if(state.view==='si4732'||state.view==='bk1080') {
       const chip=state.view;
@@ -323,7 +327,17 @@ export function mountWorkbench({onAction} = {}) {
         selectControl('调制模式',[{value:'all',label:'全部模式'},...modes.map(mode=>({value:mode,label:mode}))],state.modeFilter,value=>{state.modeFilter=value;state.page=0;renderView();}))));
     if(state.selected.size)panel.append(element('div',{class:'selection-toolbar'},element('span',{},`已选择 ${state.selected.size} 个信道`),
       element('div',{},button('取消选择',()=>{state.selected.clear();renderView();},{tone:'quiet',small:true}),
+        button('复制',()=>invoke('copy-channels',{indexes:[...state.selected]}),{small:true,disabled:state.busy}),
+        button('剪切',()=>invoke('copy-channels',{indexes:[...state.selected],cut:true}),{small:true,disabled:state.busy}),
+        button('移动',()=>invoke('channel-tool',{operation:'move',indexes:[...state.selected]}),{small:true,disabled:state.busy}),
+        button('排序存储',()=>invoke('channel-tool',{operation:'sort',indexes:[...state.selected]}),{small:true,disabled:state.busy}),
+        button('批量参数',()=>invoke('channel-tool',{operation:'batch',indexes:[...state.selected]}),{small:true,disabled:state.busy}),
         button('清空所选',()=>invoke('delete-channels',{indexes:[...state.selected]}),{tone:'danger-outline',small:true,iconName:'trash',disabled:state.busy}))));
+    panel.append(element('div',{class:'toolbar'},element('div',{class:'toolbar-left'},
+      button(`粘贴${model.workspace.clipboardCount?` ${model.workspace.clipboardCount} 个信道`:''}`,()=>invoke('channel-tool',{operation:'paste',indexes:[...state.selected]}),{small:true,disabled:state.busy||!model.workspace.clipboardCount}),
+      button('按步进生成',()=>invoke('channel-tool',{operation:'generate',indexes:[...state.selected]}),{small:true,disabled:state.busy})),
+      element('div',{class:'toolbar-right'},button('撤销',()=>invoke('undo'),{small:true,disabled:state.busy||!model.workspace.canUndo}),
+        button('重做',()=>invoke('redo'),{small:true,disabled:state.busy||!model.workspace.canRedo}))));
     const pageChecked=visible.length>0&&visible.every(row=>state.selected.has(row.index));
     const selectAll=element('input',{type:'checkbox',checked:pageChecked,indeterminate:!pageChecked&&visible.some(row=>state.selected.has(row.index)),'aria-label':'选择本页所有信道',on:{change:event=>{
       visible.forEach(row=>event.target.checked?state.selected.add(row.index):state.selected.delete(row.index));renderView();
@@ -365,7 +379,7 @@ export function mountWorkbench({onAction} = {}) {
     panel.append(element('div',{class:'chip-tabs'},...['si4732','bk1080'].map(name=>element('button',{type:'button',class:`chip-tab${chip===name?' is-active':''}`,on:{click:()=>navigate(name)}},name==='si4732'?'Si4732 · 多波段':'BK1080 · FM'))));
     panel.append(element('div',{class:'toolbar'},element('div',{class:'toolbar-left'},searchField(`radio-search-${chip}`,'搜索存台、频率或波段',state.radioQueries[chip],value=>{state.radioQueries[chip]=value;state.radioPages[chip]=0;renderView();})),
       element('div',{class:'toolbar-right'},element('span',{class:'toolbar-count'},`${all.filter(active).length} 个有效记录`),selectControl('广播波段',[{value:'all',label:'全部波段'},...bands.map(band=>({value:band,label:String(band).toUpperCase()}))],state.radioBands[chip],value=>{state.radioBands[chip]=value;state.radioPages[chip]=0;renderView();}))));
-    const headings=['编号','波段','名称','频率','模式',...(chip==='si4732'?['BFO 原值']:[]),'状态','操作'];
+    const headings=['编号','波段','名称','频率','模式',...(chip==='si4732'?['BFO / Hz']:[]),'状态','操作'];
     const head=element('tr',{},...headings.map(label=>element('th',{scope:'col'},label)));
     const body=element('tbody');
     for(const row of visible){
@@ -381,7 +395,7 @@ export function mountWorkbench({onAction} = {}) {
     panel.append(element('div',{class:'table-wrap'},element('table',{class:'data-table'},element('thead',{},head),body)));
     if(!visible.length)panel.append(element('div',{class:'no-matches'},all.length?'没有匹配的存台。':'当前工作区尚未载入这一接收芯片的存台区域。'));
     panel.append(tableFooter({total:rows.length,page,pageSize,onPage:value=>{state.radioPages[chip]=value;renderView();},onSize:value=>{state.pageSize=Number(value);state.radioPages[chip]=0;renderView();}}));
-    panel.append(element('div',{class:'notice-line'},icon('info'),element('span',{},chip==='si4732'?'Si4732 各波段记录分开编辑；VFO 与存台记录明确区分。BFO 保留原始单位，由设备解释。':'BK1080 只提供 FM 存台编辑。选择此视图不会改变设备的接收芯片类型，也不表示已检测到该芯片。')));
+    panel.append(element('div',{class:'notice-line'},icon('info'),element('span',{},chip==='si4732'?'Si4732 各波段记录分开编辑；VFO 与存台记录明确区分。BFO 使用带符号 Hz，以 10 Hz 为编辑步进。':'BK1080 只提供 FM 存台编辑。选择此视图不会改变设备的接收芯片类型，也不表示已检测到该芯片。')));
     return panel;
   }
 
@@ -416,6 +430,7 @@ export function mountWorkbench({onAction} = {}) {
         if(field.unit)box.append(element('div',{class:'field-unit'},input,element('span',{},field.unit)));else box.append(input);
       }
       if(field.readonly||field.disabled)input.dataset.skipSubmit='true';
+      if(prefix.startsWith('live-'))input.dataset.preserveFocus='true';
       if(field.help)box.append(element('p',{class:'field-help',id:`${id}-help`},field.help));
       grid.append(box);
     });
@@ -524,6 +539,83 @@ export function mountWorkbench({onAction} = {}) {
     return element('div',{class:'table-wrap'},table,changes.length>limit?element('div',{class:'notice-line'},icon('info'),`当前显示前 ${limit} 项，共 ${changes.length} 项；导出项目可保留完整修改。`):null);
   }
 
+  function renderLive() {
+    const fragment=document.createDocumentFragment(),live=model.live||{},preview=live.preview;
+    fragment.append(element('div',{class:'info-banner'},icon('broadcast'),element('span',{},live.reason||'可离线预览消息；连接并认证后才能向设备提交实时指令。')));
+    const grid=element('div',{class:'live-grid'}),messageForm=element('form',{class:'panel live-panel','aria-label':'APRS 消息'});
+    messageForm.append(element('div',{class:'subsection-heading'},element('div',{},element('h2',{},'发送消息'),element('p',{},'确认呼号与最终正文后，使用设备当前 APRS 发射配置发送一次。')),
+      button('从工作区填入',()=>{Object.assign(state.aprsDraft,live.defaults||{});renderView();},{small:true,disabled:state.busy||!Object.keys(live.defaults||{}).length})),
+      buildFields([
+        {key:'source',label:'本机呼号',required:true,maxLength:6},{key:'sourceSsid',label:'本机 SSID',type:'number',min:0,max:15,step:1,required:true},
+        {key:'destination',label:'AX.25 目标呼号',required:true,maxLength:6},{key:'destinationSsid',label:'目标 SSID',type:'number',min:0,max:15,step:1,required:true},
+        {key:'addressee',label:'消息收件人',required:true,maxLength:9,help:'最多 9 个字母、数字或连字符，可包含 SSID。'},
+        {key:'path',label:'转发路径',maxLength:30,help:'最多 30 个 ASCII 字符；以逗号或空格分隔。'},
+        {key:'text',label:'消息正文',type:'textarea',required:true,help:'K8 App 使用可打印 ASCII，移除 |、~、{，再保留前 67 字符。最终内容会在预览中列出。'},
+      ],state.aprsDraft,'live-message'));
+    const reviewBox=element('div',{class:'live-preview','aria-live':'polite'}),send=button('发送一次',async()=>{
+      if(state.busy||!confirmed.checked||!isCurrentPreview())return;
+      const result=await invoke('send-aprs',{previewId:preview.id,values:collectFields(messageForm)});
+      if(!result.ok)confirmed.checked=false;
+    },{tone:'primary',iconName:'upload',disabled:true});
+    const confirmed=element('input',{type:'checkbox',id:'live-send-confirm'});
+    const isCurrentPreview=()=>Boolean(preview&&Object.entries(preview.input||{}).every(([key,value])=>
+      ['sourceSsid','destinationSsid'].includes(key)?String(state.aprsDraft[key]).trim()!==''&&Number(state.aprsDraft[key])===Number(value):String(state.aprsDraft[key])===String(value)));
+    function refreshPreview(){
+      const current=isCurrentPreview();reviewBox.replaceChildren();
+      if(current){
+        reviewBox.append(element('h3',{},'本次发送预览'),element('p',{},`${preview.source}-${preview.sourceSsid} → ${preview.destination}-${preview.destinationSsid} · ${preview.length} B`),
+          element('p',{class:'field-help'},`最终路径：${preview.digipeaters?.length?preview.digipeaters.map(item=>`${item.callsign}-${item.ssid}`).join(' → '):'直达（无转发路径）'}`),
+          element('pre',{class:'live-message-preview'},preview.information),
+          ...(preview.warnings||[]).map(warning=>element('p',{class:'field-help'},warning)),
+          element('details',{},element('summary',{},'查看含 FCS 的 AX.25 帧'),element('code',{class:'live-hex'},preview.packetHex)),
+          element('p',{class:'field-help'},'设备接受请求不代表接收方收到。不会自动重发。'));
+      }else reviewBox.append(element('p',{class:'field-help'},'先生成预览。修改正文、呼号或路径后，需重新生成。'));
+      send.disabled=state.busy||!current||!preview?.normalizedText?.trim()||!confirmed.checked||!live.canOperate||!live.previewForCurrentSession;
+    }
+    confirmed.addEventListener('change',refreshPreview);
+    messageForm.addEventListener('input',event=>{if(event.target.dataset.fieldKey){Object.assign(state.aprsDraft,collectFields(messageForm));confirmed.checked=false;refreshPreview();}});
+    messageForm.addEventListener('change',event=>{if(event.target.dataset.fieldKey){Object.assign(state.aprsDraft,collectFields(messageForm));confirmed.checked=false;refreshPreview();}});
+    const previewButton=element('button',{type:'submit',class:'button button-outline',disabled:state.busy},'生成发送预览');
+    messageForm.addEventListener('submit',event=>{event.preventDefault();if(state.busy||!messageForm.reportValidity())return;Object.assign(state.aprsDraft,collectFields(messageForm));void invoke('preview-aprs',{values:{...state.aprsDraft}});});
+    messageForm.append(reviewBox,element('label',{class:'preview-confirm',for:confirmed.id},confirmed,element('span',{},'确认向当前设备提交这条消息的发送请求。')),
+      element('div',{class:'toolbar live-actions'},previewButton,send));refreshPreview();
+
+    const locationForm=element('form',{class:'panel live-panel','aria-label':'一次性位置同步'});
+    locationForm.append(element('h2',{},'一次性位置同步'),element('p',{class:'field-help'},'将坐标与当前 UTC 时间交给设备。此操作更新认证挑战值；继续写入配置前需重新认证（若有密码）并读取配置。'),
+      buildFields([{key:'latitude',label:'纬度 / 十进制度',type:'number',min:-90,max:90,step:'any',required:true},
+        {key:'longitude',label:'经度 / 十进制度',type:'number',min:-180,max:180,step:'any',required:true},
+        {key:'altitudeMeters',label:'海拔 / m',type:'number',min:-2147483648,max:2147483647,step:'any',required:true}],state.locationDraft,'live-location'));
+    locationForm.addEventListener('input',()=>Object.assign(state.locationDraft,collectFields(locationForm)));
+    const locationConfirmed=element('input',{type:'checkbox',id:'live-location-confirm',required:true});
+    const sync=element('button',{type:'submit',class:'button button-primary',disabled:state.busy||!live.canOperate},'同步一次位置与时间');
+    locationForm.append(button('读取浏览器当前位置',async()=>{
+      const result=await invoke('locate-browser');
+      if(result.ok){const p=result.result;Object.assign(state.locationDraft,{latitude:String(p.latitude),longitude:String(p.longitude),altitudeMeters:String(p.altitudeMeters)});
+        state.locationNote=`浏览器报告水平精度约 ${Math.round(p.accuracyMeters)} m。${p.altitudeUnavailable?'未提供海拔，当前填 0 m；可手工修改。':''} 尚未发送给设备。`;renderView();}
+    },{small:true,disabled:state.busy||!live.canLocate}),
+      element('p',{class:'field-help'},state.locationNote||'可手工输入坐标，或点击上方按钮申请一次浏览器定位；不会持续跟踪。'),
+      element('label',{class:'preview-confirm',for:locationConfirmed.id},locationConfirmed,element('span',{},'确认同步以上位置和当前时间，并重新建立写入基线。')),
+      element('div',{class:'toolbar live-actions'},sync),live.lastLocationSync?element('p',{class:'field-help'},`上次同步：${live.lastLocationSync}`):null);
+    locationForm.addEventListener('submit',event=>{event.preventDefault();if(state.busy||!live.canOperate||!locationConfirmed.checked||!locationForm.reportValidity())return;Object.assign(state.locationDraft,collectFields(locationForm));void invoke('sync-location',{values:{...state.locationDraft}});});
+    grid.append(messageForm,locationForm);fragment.append(grid);
+    const events=live.events||[],history=element('section',{class:'panel live-history'});
+    const historyTitle=element('div',{},element('h2',{},'本页收发记录'),element('p',{class:'field-help'},'保留最近 200 项，刷新后清空。接收依赖设备蓝牙功能已开启、模块已连接及实际收到无线帧。'));
+    const historyActions=element('div',{class:'toolbar-right'},button('导出收发记录',()=>invoke('export-live-events'),{small:true,disabled:!events.length}),
+      button('清空收发记录',()=>invoke('clear-live-events'),{small:true,disabled:state.busy||!events.length}));
+    history.append(element('div',{class:'panel-header'},historyTitle,historyActions));
+    if(!events.length)history.append(emptyState({title:'尚无收发记录',message:'收到设备上报后自动显示；发送消息必须在上方逐次确认。',actions:false,compact:true,iconName:'broadcast'}));
+    else{
+      const body=element('tbody');
+      for(const event of events)body.append(element('tr',{},element('td',{},event.direction==='receive'?'接收':event.accepted?'发送请求已接受':`发送被拒绝 (${event.result})`),
+        element('td',{},event.time),element('td',{},`${event.source||'未知'} → ${event.destination||'未知'}`),
+        element('td',{class:'live-information'},event.information||'未解析帧',event.possiblyTruncated?element('p',{class:'field-help'},'128 B 上限：内容可能被设备截断'):null,
+          element('details',{},element('summary',{},`${event.length} B 原始数据`),element('code',{class:'live-hex'},event.packetHex)))));
+      const table=element('table',{class:'data-table'},element('thead',{},element('tr',{},...['方向 / 结果','时间','地址','内容'].map(label=>element('th',{scope:'col'},label)))),body);
+      history.append(element('div',{class:'table-wrap'},table));
+    }
+    fragment.append(history);return fragment;
+  }
+
   function renderBackup() {
     const fragment=document.createDocumentFragment();
     if(!hasWorkspace()){fragment.append(element('section',{class:'panel'},emptyState({iconName:'folder',title:'保留一份可恢复的工作区',message:'先读取设备或导入二进制备份、工作区项目。CSV 会合并到已有工作区，在导入前保留原始数据。'})));return fragment;}
@@ -535,10 +627,12 @@ export function mountWorkbench({onAction} = {}) {
       ['file','二进制工作副本','保留当前已载入的数据与未修改字节，覆盖范围以工作区为准。','导出二进制','nor'],
       ['table','无损信道表','包含本项目的原始记录与属性字段，方便继续编辑并保留未知数据。','导出无损 CSV','csv'],
       ['table','官方 CPS 22 列','按 CPS 0.56 表格导出，只覆盖该表能表示的字段；不作为无损备份。','导出 CPS CSV','cps-csv'],
+      ['file','官方 CPS 项目','导入和导出 UV-K10 Pro CPS 0.56 的 DAT 文件；保留原文件未知内容，缺失配置时拒绝导出。','导出官方 DAT','cps-dat'],
       ['layers','本次修改','审阅更改涉及的记录、地址和字节，再决定是否写入。','审阅写入差分','preview'],
     ];
     fragment.append(element('section',{class:'card-grid'},...cards.map(([glyph,title,message,label,format])=>element('article',{class:'tool-card'},element('div',{class:'tool-card-icon'},icon(glyph)),element('h3',{},title),element('p',{},message),button(label,()=>invoke(format==='preview'?'preview-write':'export',format==='preview'?{}:{format}),{small:true,disabled:state.busy||(format==='preview'&&!Number(w.dirtyBytes))})))));
     fragment.append(element('div',{class:'subsection-heading backup-heading'},element('div',{},element('h2',{},'字节差分',element('span',{class:'record-count-subtle'},`${model.changes.length} 项`)),element('p',{},'以导入或读取时的基线为参照。未知字段保持原样。')),
+      button('撤销',()=>invoke('undo'),{small:true,disabled:state.busy||!w.canUndo}),button('重做',()=>invoke('redo'),{small:true,disabled:state.busy||!w.canRedo}),
       button('撤销全部修改',()=>invoke('discard-changes'),{tone:'danger-outline',small:true,iconName:'refresh',disabled:state.busy||!Number(w.dirtyBytes)})));
     fragment.append(element('section',{class:'panel'},model.changes.length?diffTable(model.changes):emptyState({title:'当前没有修改',message:'编辑信道、存台或设置后，这里会显示具体的字节变化。',iconName:'check',actions:false,compact:true})));
     return fragment;
@@ -570,7 +664,7 @@ export function mountWorkbench({onAction} = {}) {
     host.replaceChildren();
     if(model.connection.state==='connected'&&model.connection.passwordRequired)host.append(element('div',{class:'info-banner warning'},icon('shield'),element('span',{},'设备要求密码认证。请使用上方“输入设备密码”完成正常认证，随后读取本次设备配置。密码不写入工作区或连接日志。')));
     if(model.workspace?.mode==='demo')host.append(element('div',{class:'demo-banner'},element('span',{},element('strong',{},'演示工作区'), ' · 当前记录由合成数据生成，可体验编辑与差分，不代表任何实机读数。'),button('导入自己的备份',importFile,{tone:'quiet',small:true,disabled:state.busy})));
-    const views={channels:renderChannels,vfo:()=>renderRecords('vfo'),contacts:()=>renderRecords('contacts'),messages:()=>renderRecords('messages'),si4732:()=>renderRadio('si4732'),bk1080:()=>renderRadio('bk1080'),settings:renderSettings,scans:renderScans,backup:renderBackup,logs:renderLogs};
+    const views={channels:renderChannels,vfo:()=>renderRecords('vfo'),contacts:()=>renderRecords('contacts'),messages:()=>renderRecords('messages'),live:renderLive,si4732:()=>renderRadio('si4732'),bk1080:()=>renderRadio('bk1080'),settings:renderSettings,scans:renderScans,backup:renderBackup,logs:renderLogs};
     host.append(views[state.view]());
     if(focusId){const replacement=document.getElementById(focusId);replacement?.focus({preventScroll:true});if(replacement?.setSelectionRange&&start!=null)replacement.setSelectionRange(start,end);}
   }
@@ -592,7 +686,7 @@ export function mountWorkbench({onAction} = {}) {
 
   function openEditor(kind,record,fields=[]) {
     const dialog=byId('editor-dialog');
-    const labels={channel:'编辑对讲信道',vfo:'编辑 VFO',si4732:'编辑 Si4732 存台',bk1080:'编辑 BK1080 存台',scan:'编辑扫描列表',contact:'编辑信令联系人',message:'编辑消息文本'};
+    const labels={channel:'编辑对讲信道','channel-tool':record.title||'整理信道',vfo:'编辑 VFO',si4732:'编辑 Si4732 存台',bk1080:'编辑 BK1080 存台',scan:'编辑扫描列表',contact:'编辑信令联系人',message:'编辑消息文本'};
     const label=labels[kind]||'编辑记录';
     const id=numberOf(record);
     dialog.replaceChildren();
@@ -622,30 +716,60 @@ export function mountWorkbench({onAction} = {}) {
     const form=element('form'),body=element('div',{class:'modal-body'}),options=element('div',{class:'connection-options',role:'group','aria-label':'连接方式'});
     const available=model.capabilities||{};
     let transport=['serial','usb','ble'].find(key=>available[key])||'serial';
-    const methods=[['serial','plug','串口写频','USB 写频线'],['usb','usb','原生 USB','USB CDC 接口'],['ble','bluetooth','蓝牙','明确的 GATT 配置']];
+    const methods=[['serial','plug','串口写频','USB 写频线'],['usb','usb','原生 USB','USB CDC 接口'],['ble','bluetooth','蓝牙','K10 Pro / K8 预设']];
     const details=element('div');
     const modelConfirmed=element('input',{type:'checkbox',id:'connection-model-confirm',required:true});
     const submit=element('button',{type:'submit',class:'button button-primary'},icon('plug'),element('span',{},'选择设备并连接'));
-    const fields={baudRate:'38400',serviceUuid:'',writeUuid:'',notifyUuid:'',writeMode:'withResponse',mtuPayload:'20',wireMode:'',responseChecksum:''};
+    const fields={baudRate:'38400',serviceUuid:'',writeUuid:'',notifyUuid:'',writeMode:'withResponse',mtuPayload:'20',wireMode:'',responseChecksum:'',
+      writeStrategy:'chunked',interWriteDelayMs:0,lengthConvention:'cps-0.56',...(available.defaultBleProfile||{})};
+    let discovered=null;
     function updateSubmit(){submit.disabled=!available[transport]||state.busy||!modelConfirmed.checked;}
     modelConfirmed.addEventListener('change',updateSubmit);
-    function choose(method){
-      Object.assign(fields,collectFields(details));transport=method;
+    function choose(method,{collect=true}={}){
+      if(collect)Object.assign(fields,collectFields(details));transport=method;
       options.querySelectorAll('button').forEach(el=>{el.classList.toggle('is-active',el.dataset.transport===transport);el.setAttribute('aria-pressed',String(el.dataset.transport===transport));});
       details.replaceChildren();updateSubmit();
       if(transport==='serial')details.append(buildFields([{key:'baudRate',label:'串口波特率',type:'select',value:fields.baudRate,options:[{value:38400,label:'38400 · 目标 CPS 默认'},{value:115200,label:'115200 · 高级配置'}],help:'选择与设备当前写频接口一致的速率。'}],{},'connect'));
       if(transport==='usb')details.append(element('div',{class:'info-banner'},icon('usb'),element('span',{},'浏览器将请求设备访问权限。USB 标识仅用于筛选，连接后仍需核对型号与固件回复。')));
       if(transport==='ble'){
-        details.append(element('div',{class:'info-banner warning'},icon('info'),element('span',{},available.bleReason||'尚无已核实的 K10 Pro 默认 UUID。请使用同型号实测的服务与特征；此处不会填入其他产品的 UUID。')));
+        details.append(element('div',{class:'info-banner'},icon('info'),element('span',{},available.bleReason||'请使用 UV-K10 Pro / K8 的服务与特征配置，并核对设备本体型号。')));
+        const current=discovered?.serviceUuid===fields.serviceUuid?discovered:null;
+        const characteristicField=(key,label,predicate)=>current?{key,label,type:'select',value:fields[key],required:true,
+          options:[{value:'',label:'请选择特征'},...current.characteristics.filter(predicate).map(item=>({value:item.uuid,label:item.uuid}))]}:{key,label,type:'text',value:fields[key],required:true};
         details.append(buildFields([
           {key:'serviceUuid',label:'服务 UUID',type:'text',value:fields.serviceUuid,required:true,placeholder:'同型号确认的服务 UUID'},
-          {key:'writeUuid',label:'写入特征 UUID',type:'text',value:fields.writeUuid,required:true},
-          {key:'notifyUuid',label:'通知特征 UUID',type:'text',value:fields.notifyUuid,required:true},
+          characteristicField('writeUuid','写入特征 UUID',item=>item.properties.write||item.properties.writeWithoutResponse),
+          characteristicField('notifyUuid','通知特征 UUID',item=>item.properties.notify||item.properties.indicate),
           {key:'writeMode',label:'GATT 写入方式',type:'select',value:fields.writeMode,options:[{value:'withResponse',label:'带响应'},{value:'withoutResponse',label:'无响应'}]},
-          {key:'mtuPayload',label:'单次写入负载 / B',type:'number',value:fields.mtuPayload,min:1,max:512,step:1,help:'传输分片长度必须与已核实的模块行为相符。'},
+          {key:'writeStrategy',label:'GATT 写入策略',type:'select',value:fields.writeStrategy,options:[{value:'whole-frame',label:'完整帧 · K8 App 方式'},{value:'chunked',label:'手工分片 · 自定义配置'}]},
+          {key:'interWriteDelayMs',label:'帧间隔 / ms',type:'number',value:fields.interWriteDelayMs,min:0,max:1000,step:1,help:'K8 App 在每次完整帧写入后等待 120 ms。'},
+          {key:'mtuPayload',label:'手工分片长度 / B',type:'number',value:fields.mtuPayload,min:1,max:244,step:1,help:'仅在手工分片策略中使用。完整帧策略由浏览器处理 GATT 写入，不声称已经协商 MTU。'},
           {key:'wireMode',label:'帧体编码',type:'select',value:fields.wireMode,required:true,options:[{value:'',label:'请选择已核实的编码'},{value:'plain',label:'明文帧体'},{value:'xor',label:'XOR16 帧体'}],help:'必须来自同型号蓝牙链路证据，不沿用串口假设。'},
-          {key:'responseChecksum',label:'响应校验方式',type:'select',value:fields.responseChecksum,required:true,options:[{value:'',label:'请选择已核实的校验'},{value:'placeholder',label:'FFFF 占位'},{value:'crc16-x25',label:'CRC16/X25'}]},
+          {key:'responseChecksum',label:'响应校验方式',type:'select',value:fields.responseChecksum,required:true,options:[{value:'',label:'请选择已核实的校验'},{value:'crc16-x25-or-placeholder',label:'CRC16/X25 或 FFFF · K8 App'},{value:'placeholder',label:'FFFF 占位'},{value:'crc16-x25',label:'CRC16/X25'}]},
+          {key:'lengthConvention',label:'指令长度约定',type:'select',value:fields.lengthConvention,options:[{value:'android-k8',label:'Android K8'},{value:'cps-0.56',label:'PC CPS 0.56'}]},
         ],{},'connect'));
+        const profileInput=element('input',{type:'file',accept:'.json',hidden:true,'aria-label':'导入蓝牙连接配置'});
+        profileInput.addEventListener('change',async event=>{
+          const file=event.target.files?.[0];event.target.value='';if(!file)return;
+          const result=await invoke('import-ble-profile',{file});
+          if(result.ok){Object.assign(fields,result.result);discovered=null;choose('ble',{collect:false});}
+        });
+        const inspect=button('检查 BLE 服务',async()=>{
+          Object.assign(fields,collectFields(details));inspect.disabled=true;
+          try {
+            const result=await invoke('discover-ble',{serviceUuid:fields.serviceUuid});
+            if(result.ok&&dialog.open){discovered=result.result;fields.serviceUuid=discovered.serviceUuid;
+              for(const key of ['writeUuid','notifyUuid'])if(!discovered.characteristics.some(item=>item.uuid===fields[key]))fields[key]='';
+              choose('ble',{collect:false});}
+          }finally{inspect.disabled=false;}
+        },{small:true,disabled:state.busy});
+        details.append(element('div',{class:'toolbar'},element('div',{class:'toolbar-left'},inspect,
+          available.defaultBleProfile?button('恢复 K10 预设',()=>{Object.assign(fields,available.defaultBleProfile);discovered=null;choose('ble',{collect:false});},{small:true,disabled:state.busy}):null,
+          button('导入连接配置',()=>profileInput.click(),{small:true,disabled:state.busy}),
+          button('导出连接配置',()=>{Object.assign(fields,collectFields(details));return invoke('export-ble-profile',fields);},{small:true,disabled:state.busy}))),profileInput);
+        if(current)details.append(element('p',{class:'field-help'},`发现 ${current.characteristics.length} 个特征。下拉框按实际可写/通知能力筛选；帧编码、校验和分片长度仍需由同型号证据确认。`));
+        const serviceInput=details.querySelector('[data-field-key="serviceUuid"]');
+        serviceInput?.addEventListener('change',()=>{Object.assign(fields,collectFields(details));if(discovered&&fields.serviceUuid!==discovered.serviceUuid){discovered=null;choose('ble',{collect:false});}});
       }
     }
     methods.forEach(([key,glyph,label,note])=>options.append(element('button',{type:'button',class:'connection-option','data-transport':key,disabled:!available[key],'aria-pressed':String(transport===key),on:{click:()=>choose(key)}},icon(glyph),element('strong',{},label),element('span',{},available[key]?note:'当前浏览器不可用'))));
@@ -658,7 +782,8 @@ export function mountWorkbench({onAction} = {}) {
       Object.assign(fields,collectFields(details));
       // Invoke synchronously inside the user's submit gesture so browser
       // device permission pickers retain transient user activation.
-      const request=invoke('connect',{transport,selectedModel:'UV-K10 Pro',modelConfirmed:true,baudRate:Number(fields.baudRate),serviceUuid:fields.serviceUuid,writeUuid:fields.writeUuid,notifyUuid:fields.notifyUuid,writeMode:fields.writeMode,mtuPayload:Number(fields.mtuPayload),wireMode:fields.wireMode,responseChecksum:fields.responseChecksum});
+      const request=invoke('connect',{transport,selectedModel:'UV-K10 Pro',modelConfirmed:true,baudRate:Number(fields.baudRate),serviceUuid:fields.serviceUuid,writeUuid:fields.writeUuid,notifyUuid:fields.notifyUuid,writeMode:fields.writeMode,mtuPayload:Number(fields.mtuPayload),wireMode:fields.wireMode,responseChecksum:fields.responseChecksum,
+        writeStrategy:fields.writeStrategy,interWriteDelayMs:Number(fields.interWriteDelayMs),lengthConvention:fields.lengthConvention});
       dialog.close();void request;
     });
     dialog.append(form);choose(transport);show(dialog);
@@ -691,6 +816,46 @@ export function mountWorkbench({onAction} = {}) {
       }
     });
     dialog.append(form);show(dialog);password.focus();
+  }
+
+  function openCredentials({kind,passwordRequired=false}={}) {
+    if(state.busy||model.connection.state!=='connected'||!['startup','programming'].includes(kind))return;
+    const startup=kind==='startup',dialog=byId('credentials-dialog');
+    dialog.replaceChildren(modalHeader(startup?'修改开机数字密码':'修改编程密码','credentials-title',
+      '此操作直接提交到当前设备，完成后关闭连接。普通配置的本地修改仍会保留。',dialog));
+    const form=element('form'),body=element('div',{class:'modal-body'}),fields=element('div',{class:'form-grid'});
+    const passwordInput=(name,label,requiredValue,autocomplete)=>{
+      const input=element('input',{type:'password',id:`credential-${name}`,name,class:'field-control',required:requiredValue,autocomplete,
+        autocapitalize:'none',spellcheck:false,inputmode:startup?'numeric':'text',...(startup?{pattern:'[0-9]{1,6}',maxlength:6}:{})});
+      fields.append(element('div',{class:'form-field'},element('label',{class:'form-label',for:input.id},label),input));return input;
+    };
+    const current=!startup&&passwordRequired?passwordInput('current','当前编程密码',true,'current-password'):null;
+    const next=passwordInput('new',startup?'新的开机密码（1–6 位数字）':'新的编程密码',true,'new-password');
+    const repeated=passwordInput('confirm','再次输入新密码',true,'new-password');
+    const disable=element('input',{type:'checkbox',id:'credential-disable'});
+    disable.addEventListener('change',()=>{for(const input of [next,repeated]){input.disabled=disable.checked;input.required=!disable.checked;input.value='';}});
+    const review=element('input',{type:'checkbox',id:'credential-review-confirm',required:true});
+    const error=element('div',{class:'form-error',hidden:true,role:'alert'});
+    body.append(fields,element('label',{class:'preview-confirm',for:disable.id},disable,element('span',{},startup?'清除开机密码':'清除编程密码')),
+      element('p',{class:'field-help'},startup?'此处只处理开机数字密码。设备声明该区域锁定时不会尝试修改。':'当前密码只用于正常认证，新密码最多 32 个 UTF-8 字节。输入不会加入工作区或连接日志。'),
+      element('label',{class:'preview-confirm',for:review.id},review,element('span',{},'确认将以上密码变更提交到当前连接的 UV-K10 Pro。')),error);
+    const submit=element('button',{type:'submit',class:'button button-primary'},'提交密码修改');
+    form.append(body,element('footer',{class:'modal-footer'},button('取消',()=>dialog.close(),{tone:'quiet'}),submit));
+    let submitting=false;
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();if(submitting||state.busy||!form.reportValidity()||!review.checked)return;
+      if(!disable.checked&&next.value!==repeated.value){error.textContent='两次新密码不一致。';error.hidden=false;return;}
+      const values={kind,currentPassword:current?.value??'',newPassword:disable.checked?'':next.value,confirmPassword:disable.checked?'':repeated.value,disable:disable.checked};
+      for(const input of [current,next,repeated].filter(Boolean)){input.value='';input.disabled=true;}
+      submitting=true;submit.disabled=true;disable.disabled=true;review.disabled=true;error.hidden=true;
+      try {const result=await invoke('change-credentials',values);if(result.ok)dialog.close();else{error.textContent=result.error;error.hidden=false;}}
+      finally {
+        values.currentPassword='';values.newPassword='';values.confirmPassword='';
+        for(const input of [current,next,repeated].filter(Boolean)){input.value='';input.disabled=input!==current&&disable.checked;}
+        submitting=false;submit.disabled=false;disable.disabled=false;review.disabled=false;
+      }
+    });
+    dialog.append(form);show(dialog);(current||next).focus();
   }
 
   function openWritePreview({changes=model.changes,summary,canWrite=false,reason=''}={}) {
@@ -736,7 +901,7 @@ export function mountWorkbench({onAction} = {}) {
     const content=element('div',{class:'modal-body help-content'});
     content.append(element('section',{},element('h3',{},'建议的操作顺序'),element('ol',{},element('li',{},'导入已有备份，或连接设备并读取配置。'),element('li',{},'导出一份工作区项目，保留修改前的来源和数据。'),element('li',{},'编辑信道、接收芯片存台、扫描列表和设置，并应用到工作区。'),element('li',{},'打开写入预览，核对具体差分；满足设备条件后再确认写入。'))),
       element('section',{},element('h3',{},'设备和软件范围'),element('p',{},'界面只采用 UV-K10 Pro / K8 的数据布局。Android 包中的 K82、UV5 配置不会用于此工作区。当前固定固件参考为 ENG 8.02.16；识别失败或版本不符时，设备写入应由控制器保持关闭。')),
-      element('section',{},element('h3',{},'广播存台与音频器件'),element('p',{},'Si4732 的多波段存台与 BK1080 的 FM 存台分别编辑。切换视图不是更换设备芯片，也不证明芯片已焊装。4898 为用户补充的音频功放标记，功放本身不作为存台或频率调谐器。')),
+      element('section',{},element('h3',{},'广播存台'),element('p',{},'Si4732 提供 FM、LW、MW、SW 编辑视图；BK1080 提供 FM 编辑视图，两者共用 FM 存台。切换视图不会修改设备的接收芯片配置。')),
       element('section',{},element('h3',{},'浏览器连接'),element('p',{},'Web Serial、WebUSB、Web Bluetooth 的可用性取决于浏览器、操作系统及设备授权。请使用 HTTPS 或 localhost；蓝牙连接需要同型号确认的 GATT UUID。'),element('p',{},'连接的 HELLO 流程会同步设备 RTC。USB 标识或参数版本值不能单独确认机型。')),
       element('section',{},element('h3',{},'数据来源'),element('p',{},'演示工作区由合成输入生成，并不来自实机。未知字段保留原始字节；只读或未确认字段不在通用表单中自动修正。写入结果需以读回核对为准。')));
     dialog.append(content,element('footer',{class:'modal-footer'},button('知道了',()=>dialog.close(),{tone:'primary'})));show(dialog);
@@ -755,7 +920,8 @@ export function mountWorkbench({onAction} = {}) {
   document.querySelectorAll('.nav-item').forEach(el=>listen(el,'click',()=>navigate(el.dataset.view)));
   listen(byId('confirm-dialog'),'close',()=>{if(confirmResolve){confirmResolve(false);confirmResolve=null;}});
   listen(byId('authentication-dialog'),'close',()=>{const password=byId('authentication-dialog').querySelector('input[type="password"]');if(password)password.value='';});
+  listen(byId('credentials-dialog'),'close',()=>{byId('credentials-dialog').querySelectorAll('input[type="password"]').forEach(input=>{input.value='';});});
   for(const dialog of dialogs)listen(dialog,'click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();}});
   render();
-  return {render,toast,openEditor,openWritePreview,closeDialog,setBusy,confirm,navigate,destroy(){abort.abort();for(const timer of timers)clearTimeout(timer);timers.clear();closeDialog();if(confirmResolve){confirmResolve(false);confirmResolve=null;}}};
+  return {render,toast,openEditor,openCredentials,openWritePreview,closeDialog,setBusy,confirm,navigate,destroy(){abort.abort();for(const timer of timers)clearTimeout(timer);timers.clear();closeDialog();if(confirmResolve){confirmResolve(false);confirmResolve=null;}}};
 }

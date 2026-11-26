@@ -28,6 +28,7 @@
           <button class="nav-item" data-view="scans" type="button"><span data-icon="scan"></span><span class="nav-label">扫描列表</span></button>
           <button class="nav-item" data-view="contacts" type="button"><span data-icon="contacts"></span><span class="nav-label">信令联系人</span></button>
           <button class="nav-item" data-view="messages" type="button"><span data-icon="message"></span><span class="nav-label">消息与文本</span></button>
+          <button class="nav-item" data-view="live" type="button"><span data-icon="broadcast"></span><span class="nav-label">APRS 实时收发</span></button>
         </nav>
         <div class="sidebar-section">工作区工具</div>
         <nav class="nav-list" aria-label="工作区工具">
@@ -64,10 +65,11 @@
         </main>
       </div>
     </div>
-    <input id="import-file" type="file" accept=".bin,.json,.csv,.k10" hidden>
+    <input id="import-file" type="file" accept=".bin,.dat,.json,.csv,.k10" hidden>
     <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="false"></div>
     <dialog class="modal connection-modal" id="connection-dialog" aria-labelledby="connection-dialog-title"></dialog>
     <dialog class="modal authentication-modal" id="authentication-dialog" aria-labelledby="authentication-title"></dialog>
+    <dialog class="modal authentication-modal" id="credentials-dialog" aria-labelledby="credentials-title"></dialog>
     <dialog class="editor-dialog" id="editor-dialog" aria-labelledby="editor-title"></dialog>
     <dialog class="modal preview-modal" id="preview-dialog" aria-labelledby="preview-title"></dialog>
     <dialog class="modal confirm-modal" id="confirm-dialog" aria-labelledby="confirm-title"></dialog>

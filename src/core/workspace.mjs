@@ -35,6 +35,7 @@ export class MemoryWorkspace {
     this.sessionId = mode === 'device' ? sessionId : null;
     this.provenance = { ...provenance }; this.importedDirty = Boolean(importedDirty);
     this.revision = 0; this.journal = []; this.uncertain = false;
+    this.undoStack = []; this.redoStack = [];
     // Unread storage is only an allocation convenience, never an observed FF.
     let cursor = 0;
     for (const r of this.coverage) {
@@ -57,7 +58,36 @@ export class MemoryWorkspace {
     for (let i = 0; i < next.length; i++) {
       if (next[i] !== this.data[i] && !this.has(i, 1)) throw new RangeError('Edit touches unread storage');
     }
+    const edits = [];
+    for (const range of this.coverage) {
+      let start = null;
+      const end = range.address + range.length;
+      for (let index = range.address; index <= end; index++) {
+        const changed = index < end && this.data[index] !== next[index];
+        if (changed && start === null) start = index;
+        if (!changed && start !== null) {
+          edits.push({ address: start, before: this.data.slice(start, index), after: next.slice(start, index) }); start = null;
+        }
+      }
+    }
+    if (!edits.length) return;
+    this.undoStack.push(edits); this.redoStack = [];
+    while (this.undoStack.length > 30 || this.undoStack.reduce((sum, entry) => sum + entry.reduce((n, edit) => n + edit.before.length * 2, 0), 0) > 16 * 1024 * 1024)
+      this.undoStack.shift();
     this.data = next.slice(); this.revision++;
+  }
+  clearHistory() { this.undoStack = []; this.redoStack = []; }
+  undo() {
+    if (this.uncertain) throw new Error('写入结果不确定，请先重新读取设备。');
+    const edits = this.undoStack.pop(); if (!edits) return false;
+    for (const edit of edits) this.data.set(edit.before, edit.address);
+    this.redoStack.push(edits); this.revision++; return true;
+  }
+  redo() {
+    if (this.uncertain) throw new Error('写入结果不确定，请先重新读取设备。');
+    const edits = this.redoStack.pop(); if (!edits) return false;
+    for (const edit of edits) this.data.set(edit.after, edit.address);
+    this.undoStack.push(edits); this.revision++; return true;
   }
   differences() {
     const changes = [];
@@ -83,7 +113,7 @@ export class MemoryWorkspace {
   }
   discard() {
     if (this.uncertain) throw new Error('一次写入结果不确定；请重新读取设备再建立基线。');
-    this.data = this.baseline.slice(); this.revision++;
+    this.apply(this.baseline);
   }
   planWrites() {
     if (this.uncertain) throw new Error('上一轮写入状态不确定，请先重新读取设备。');
@@ -128,6 +158,9 @@ export async function executeWritePlan(workspace, session, sessionId, plan, { si
     onProgress?.({ phase: 'preflight', completed: checked, total: plan.bytes });
   }
   await onBackup?.({ kind: 'configuration-before-write', plan: plan.blocks.map(b => ({ address: b.address, data: b.before.slice() })) });
+  // Hardware commits establish a new baseline; local undo must not masquerade
+  // as reversing an already sent device operation.
+  workspace.clearHistory();
   let written = 0;
   for (const block of plan.blocks) {
     signal?.throwIfAborted();

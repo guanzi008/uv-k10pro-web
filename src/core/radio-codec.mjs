@@ -7,6 +7,16 @@ export { RADIO_BANKS, RADIO_CHIPS, RADIO_HEADER_FIELDS } from './schema.mjs';
 export const RADIO_TRANSFER_REGION = Object.freeze({ offset: 0x12000, length: 0xb10 });
 export const RADIO_STATION_SIZE = 8;
 export const RADIO_DEMODULATIONS = Object.freeze({ 1: 'AM', 2: 'LSB', 3: 'USB' });
+// The pinned stock consumer uses LDRSH and truncates toward zero to 10 Hz.
+// Its Si473x driver forwards that signed word to SET_PROPERTY 0x0100.
+// See docs/bfo.md and the original-instruction replay evidence.
+export const BFO_HZ_LIMITS = Object.freeze({ min: -16380, max: 16380, step: 10 });
+
+export function effectiveBfoHz(raw) {
+  integer(raw, 0, 65535, 'raw BFO word');
+  const signed = raw < 0x8000 ? raw : raw - 0x10000;
+  return Math.trunc(signed / 10) * 10 || 0;
+}
 
 function bankFor(chip, band) {
   if (!Object.hasOwn(RADIO_CHIPS, chip)) throw new RangeError(`Unknown radio chip profile: ${chip}`);
@@ -27,7 +37,9 @@ export function decodeRadioStation(raw, { band = 'fm', index = null } = {}) {
   const limits = RADIO_BANKS[band];
   return { raw, index, is_vfo: index === 0, frequency_hz,
     demodulation: raw[4], mode: band === 'fm' ? 'FM' : RADIO_DEMODULATIONS[raw[4]] ?? 'unknown',
-    bfo_raw: dv.getUint16(6, true), reserved: raw[5],
+    bfo_raw: dv.getUint16(6, true), bfo_hz: dv.getInt16(6, true),
+    bfo_effective_hz: effectiveBfoHz(dv.getUint16(6, true)),
+    bfo_in_receiver_range: Math.abs(dv.getInt16(6, true)) <= 16383, reserved: raw[5],
     empty: dv.getUint32(0, true) === 0 || dv.getUint32(0, true) === 0xffffffff,
     in_cps_range: frequency_hz >= limits.min_hz && frequency_hz <= limits.max_hz };
 }
@@ -48,6 +60,8 @@ export function patchRadioStation(image, chip, band, index, changes) {
   const offset = radioStationOffset(chip, band, index);
   const edited = span(image, offset, 8).slice();
   const dv = view(edited);
+  if (Object.hasOwn(changes, 'bfo_raw') && Object.hasOwn(changes, 'bfo_hz'))
+    throw new RangeError('Specify either bfo_hz or bfo_raw, not both');
   for (const [key, value] of Object.entries(changes)) {
     if (key === 'frequency_hz') {
       const units = frequencyUnits(value);
@@ -61,9 +75,13 @@ export function patchRadioStation(image, chip, band, index, changes) {
       edited[4] = integer(value, 1, 3, 'AM / LSB / USB value');
     } else if (key === 'bfo_raw') {
       if (band === 'fm') throw new RangeError('FM broadcast records do not expose BFO editing');
-      // CPS stores UInt16 but its display validator mixes signed bounds. Do
-      // not invent a signed-Hz contract before a firmware consumer is traced.
+      // Retained for lossless file tools, including unusual original bit patterns.
       dv.setUint16(6, integer(value, 0, 65535, 'raw BFO word'), true);
+    } else if (key === 'bfo_hz') {
+      if (band === 'fm') throw new RangeError('FM broadcast records do not expose BFO editing');
+      integer(value, BFO_HZ_LIMITS.min, BFO_HZ_LIMITS.max, 'BFO / Hz');
+      if (value % BFO_HZ_LIMITS.step !== 0) throw new RangeError('BFO must be a multiple of 10 Hz; stock firmware truncates other values');
+      dv.setInt16(6, value, true);
     } else throw new RangeError(`Unknown or reserved radio field: ${key}`);
   }
   const output = bytes(image).slice();

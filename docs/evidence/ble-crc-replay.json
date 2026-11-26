@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "sample_sha256": "c2cbc6245093682907109259fa1c888fa1f41c6505a48d113e0b5ca09fd5dabb",
+  "scope": "Original ARM64 CRC byte/final arithmetic and response checksum comparison blocks only. Synthetic inputs, stack and Thread. Frame layout is independently assembled from static AOT analysis; complete Dart codecs, Android, BLE and radio hardware are not executed.",
+  "code_blocks": {
+    "crc_byte": [
+      "0x771C90",
+      "0x771CF4"
+    ],
+    "crc_final": [
+      "0x771D18",
+      "0x771D2C"
+    ],
+    "placeholder_branch": [
+      "0x77187C",
+      "0x771888"
+    ],
+    "crc_branch": [
+      "0x7718AC",
+      "0x7718C0"
+    ]
+  },
+  "crc_cases": [
+    {
+      "name": "empty",
+      "input_hex": "",
+      "crc16_x25": 0
+    },
+    {
+      "name": "check-vector",
+      "input_hex": "313233343536373839",
+      "crc16_x25": 36974
+    },
+    {
+      "name": "all-octets",
+      "input_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "crc16_x25": 12348
+    },
+    {
+      "name": "zero-128",
+      "input_hex": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "crc16_x25": 45040
+    },
+    {
+      "name": "ones-128",
+      "input_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "crc16_x25": 14919
+    },
+    {
+      "name": "hello-android",
+      "input_hex": "bc0218007856341200f1536500000000000000000000000000000000",
+      "crc16_x25": 41803
+    },
+    {
+      "name": "read-four",
+      "input_hex": "c3020c00002101000400000078563412",
+      "crc16_x25": 36357
+    },
+    {
+      "name": "write-four-android-padded",
+      "input_hex": "c5028c000021010004000000785634120102030400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "crc16_x25": 21123
+    },
+    {
+      "name": "write-ack",
+      "input_hex": "c602040000100000",
+      "crc16_x25": 37459
+    },
+    {
+      "name": "crc-equals-placeholder",
+      "input_hex": "01700200f2ac",
+      "crc16_x25": 65535
+    }
+  ],
+  "checksum_branch_cases": [
+    {
+      "name": "empty",
+      "received": 65535,
+      "computed": 0,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "empty",
+      "received": 0,
+      "computed": 0,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "empty",
+      "received": 1,
+      "computed": 0,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "check-vector",
+      "received": 65535,
+      "computed": 36974,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "check-vector",
+      "received": 36974,
+      "computed": 36974,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "check-vector",
+      "received": 36975,
+      "computed": 36974,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "all-octets",
+      "received": 65535,
+      "computed": 12348,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "all-octets",
+      "received": 12348,
+      "computed": 12348,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "all-octets",
+      "received": 12349,
+      "computed": 12348,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "zero-128",
+      "received": 65535,
+      "computed": 45040,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "zero-128",
+      "received": 45040,
+      "computed": 45040,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "zero-128",
+      "received": 45041,
+      "computed": 45040,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "ones-128",
+      "received": 65535,
+      "computed": 14919,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "ones-128",
+      "received": 14919,
+      "computed": 14919,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "ones-128",
+      "received": 14918,
+      "computed": 14919,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "hello-android",
+      "received": 65535,
+      "computed": 41803,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "hello-android",
+      "received": 41803,
+      "computed": 41803,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "hello-android",
+      "received": 41802,
+      "computed": 41803,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "read-four",
+      "received": 65535,
+      "computed": 36357,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "read-four",
+      "received": 36357,
+      "computed": 36357,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "read-four",
+      "received": 36356,
+      "computed": 36357,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "write-four-android-padded",
+      "received": 65535,
+      "computed": 21123,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "write-four-android-padded",
+      "received": 21123,
+      "computed": 21123,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "write-four-android-padded",
+      "received": 21122,
+      "computed": 21123,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "write-ack",
+      "received": 65535,
+      "computed": 37459,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "write-ack",
+      "received": 37459,
+      "computed": 37459,
+      "accepted": true,
+      "crc_verified": true
+    },
+    {
+      "name": "write-ack",
+      "received": 37458,
+      "computed": 37459,
+      "accepted": false,
+      "crc_verified": false
+    },
+    {
+      "name": "crc-equals-placeholder",
+      "received": 65535,
+      "computed": 65535,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "crc-equals-placeholder",
+      "received": 65535,
+      "computed": 65535,
+      "accepted": true,
+      "crc_verified": false
+    },
+    {
+      "name": "crc-equals-placeholder",
+      "received": 65534,
+      "computed": 65535,
+      "accepted": false,
+      "crc_verified": false
+    }
+  ],
+  "frame_vectors": [
+    {
+      "name": "hello-android",
+      "body_hex": "bc0218007856341200f1536500000000000000000000000000000000",
+      "frame_hex": "abcd1c00bc0218007856341200f15365000000000000000000000000000000004ba3dcba"
+    },
+    {
+      "name": "read-four",
+      "body_hex": "c3020c00002101000400000078563412",
+      "frame_hex": "abcd1000c3020c00002101000400000078563412058edcba"
+    },
+    {
+      "name": "write-four-android-padded",
+      "body_hex": "c5028c000021010004000000785634120102030400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "frame_hex": "abcd9000c5028c0000210100040000007856341201020304000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008352dcba"
+    },
+    {
+      "name": "write-ack",
+      "body_hex": "c602040000100000",
+      "frame_hex": "abcd0800c6020400001000005392dcba"
+    }
+  ],
+  "passed": 40
+}

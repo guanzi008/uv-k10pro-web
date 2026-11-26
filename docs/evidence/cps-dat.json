@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "kind": "static-CPS-native-DAT-path-check",
+  "assembly_sha256": "79c9b3429187f7fca13cc8971d0e5fd46184f078127f149f333a267b99815132",
+  "container_length": 880640,
+  "container_hex_length": "0xD7000",
+  "vendor_code_executed": false,
+  "methods": [
+    {
+      "role": "static-initializer",
+      "token": "0x06000453",
+      "rva": "0x0006e4e0"
+    },
+    {
+      "role": "save-DAT",
+      "token": "0x060003e8",
+      "rva": "0x00068b4c"
+    },
+    {
+      "role": "open-dialog",
+      "token": "0x0600040b",
+      "rva": "0x0006a290"
+    },
+    {
+      "role": "open-file",
+      "token": "0x0600040d",
+      "rva": "0x0006a340"
+    },
+    {
+      "role": "serialize-config",
+      "token": "0x060003ea",
+      "rva": "0x00068d20"
+    },
+    {
+      "role": "initialize-FF",
+      "token": "0x060003e6",
+      "rva": "0x00068af4"
+    }
+  ],
+  "config_destination_constants_checked": 16,
+  "native_model_signature": null,
+  "limitations": "Static file/serialization path checks, not execution in official CPS or device acceptance. Native file bytes do not authenticate the product."
+}

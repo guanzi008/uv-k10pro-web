@@ -48,15 +48,17 @@ test('WebUSB validates CDC descriptors and uses numeric endpoint plus exact CDC 
 test('Web Bluetooth uses only supplied UUIDs, selected GATT write method, ordered chunks, and notification cleanup', async () => {
   const serviceUuid = '00000001-0000-0000-0000-000000000000', writeUuid = '00000002-0000-0000-0000-000000000000', notifyUuid = '00000003-0000-0000-0000-000000000000';
   const writes = [], listeners = new Map(), deviceListeners = new Map();
-  const tx = { async writeValueWithResponse(data) { writes.push(data.slice()); }, async writeValueWithoutResponse() { assert.fail('Wrong GATT write method'); } };
-  const rx = { addEventListener(type, cb) { listeners.set(type, cb); }, removeEventListener(type) { listeners.delete(type); }, async startNotifications() {} };
+  const tx = { properties: { write: true }, async writeValueWithResponse(data) { writes.push(data.slice()); }, async writeValueWithoutResponse() { assert.fail('Wrong GATT write method'); } };
+  const rx = { properties: { notify: true }, addEventListener(type, cb) { listeners.set(type, cb); }, removeEventListener(type) { listeners.delete(type); }, async startNotifications() {} };
   const device = {
     addEventListener(type, cb) { deviceListeners.set(type, cb); }, removeEventListener(type) { deviceListeners.delete(type); },
     gatt: { connected: false, async connect() { this.connected = true; return { async getPrimaryService(uuid) {
       assert.equal(uuid, serviceUuid); return { async getCharacteristic(uuid) { return uuid === writeUuid ? tx : uuid === notifyUuid ? rx : assert.fail('Unknown characteristic'); } };
     } }; }, disconnect() { this.connected = false; } },
   };
-  const transport = await WebBluetoothTransport.request({ bluetooth: { async requestDevice(input) { assert.deepEqual(input.filters, [{ services: [serviceUuid] }]); return device; } },
+  const transport = await WebBluetoothTransport.request({ bluetooth: { async requestDevice(input) {
+    assert.deepEqual(input, { acceptAllDevices: true, optionalServices: [serviceUuid] }); return device;
+  } },
     serviceUuid, writeUuid, notifyUuid, writeMode: 'withResponse', wireMode: 'plain', responseChecksum: 'crc16-x25', mtuPayload: 3 });
   await transport.write(Uint8Array.of(0, 1, 2, 3, 4, 5, 6));
   assert.deepEqual(writes, [Uint8Array.of(0, 1, 2), Uint8Array.of(3, 4, 5), Uint8Array.of(6)]);

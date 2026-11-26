@@ -1,0 +1,933 @@
+{
+  "schema_version": 1,
+  "sample_sha256": "061759672cc69a1b00420ce6fae67b0756d3db111f8fa4329cadc940dcd17f17",
+  "functions": {
+    "active_record_load": "0x080076EC",
+    "apply_radio_parameters": "0x080110BC",
+    "bfo_property": "0x0801A028",
+    "set_property": "0x08019F4C"
+  },
+  "scope": "Synthetic RAM. Original Cortex-M0 instructions execute; receiver CTS, transport and delay are replaced. No physical receiver, RF or audio validation.",
+  "property_reference": "AN332 Rev 0.8a SSB amendment, Property 0x0100, page 23: signed Hz",
+  "cases": [
+    {
+      "mode": 2,
+      "stored_signed": -32768,
+      "stored_word": 32768,
+      "effective_signed": -32760,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001008008",
+      "packets": [
+        "120001019010",
+        "120001008008",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 710,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": -16383,
+      "stored_word": 49153,
+      "effective_signed": -16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100c004",
+      "packets": [
+        "120001019010",
+        "12000100c004",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 710,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": -16380,
+      "stored_word": 49156,
+      "effective_signed": -16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100c004",
+      "packets": [
+        "120001019010",
+        "12000100c004",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 710,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": -101,
+      "stored_word": 65435,
+      "effective_signed": -100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100ff9c",
+      "packets": [
+        "120001019010",
+        "12000100ff9c",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 686,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": -100,
+      "stored_word": 65436,
+      "effective_signed": -100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100ff9c",
+      "packets": [
+        "120001019010",
+        "12000100ff9c",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 686,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": -10,
+      "stored_word": 65526,
+      "effective_signed": -10,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100fff6",
+      "packets": [
+        "120001019010",
+        "12000100fff6",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 680,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": -9,
+      "stored_word": 65527,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 674,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": -1,
+      "stored_word": 65535,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 674,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 0,
+      "stored_word": 0,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 670,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 1,
+      "stored_word": 1,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 670,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 9,
+      "stored_word": 9,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 670,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 10,
+      "stored_word": 10,
+      "effective_signed": 10,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100000a",
+      "packets": [
+        "120001019010",
+        "12000100000a",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 676,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 100,
+      "stored_word": 100,
+      "effective_signed": 100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000064",
+      "packets": [
+        "120001019010",
+        "120001000064",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 682,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 101,
+      "stored_word": 101,
+      "effective_signed": 100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000064",
+      "packets": [
+        "120001019010",
+        "120001000064",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 682,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 16380,
+      "stored_word": 16380,
+      "effective_signed": 16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001003ffc",
+      "packets": [
+        "120001019010",
+        "120001003ffc",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 706,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 16383,
+      "stored_word": 16383,
+      "effective_signed": 16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001003ffc",
+      "packets": [
+        "120001019010",
+        "120001003ffc",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 706,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 2,
+      "stored_signed": 32767,
+      "stored_word": 32767,
+      "effective_signed": 32760,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001007ff8",
+      "packets": [
+        "120001019010",
+        "120001007ff8",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 706,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 210,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -32768,
+      "stored_word": 32768,
+      "effective_signed": -32760,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001008008",
+      "packets": [
+        "120001019010",
+        "120001008008",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 710,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -16383,
+      "stored_word": 49153,
+      "effective_signed": -16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100c004",
+      "packets": [
+        "120001019010",
+        "12000100c004",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 710,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -16380,
+      "stored_word": 49156,
+      "effective_signed": -16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100c004",
+      "packets": [
+        "120001019010",
+        "12000100c004",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 710,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -101,
+      "stored_word": 65435,
+      "effective_signed": -100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100ff9c",
+      "packets": [
+        "120001019010",
+        "12000100ff9c",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 686,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -100,
+      "stored_word": 65436,
+      "effective_signed": -100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100ff9c",
+      "packets": [
+        "120001019010",
+        "12000100ff9c",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 686,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -10,
+      "stored_word": 65526,
+      "effective_signed": -10,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100fff6",
+      "packets": [
+        "120001019010",
+        "12000100fff6",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 680,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -9,
+      "stored_word": 65527,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 674,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": -1,
+      "stored_word": 65535,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 674,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 0,
+      "stored_word": 0,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 670,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 1,
+      "stored_word": 1,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 670,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 9,
+      "stored_word": 9,
+      "effective_signed": 0,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000000",
+      "packets": [
+        "120001019010",
+        "120001000000",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 670,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 10,
+      "stored_word": 10,
+      "effective_signed": 10,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "12000100000a",
+      "packets": [
+        "120001019010",
+        "12000100000a",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 676,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 100,
+      "stored_word": 100,
+      "effective_signed": 100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000064",
+      "packets": [
+        "120001019010",
+        "120001000064",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 682,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 101,
+      "stored_word": 101,
+      "effective_signed": 100,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001000064",
+      "packets": [
+        "120001019010",
+        "120001000064",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 682,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 16380,
+      "stored_word": 16380,
+      "effective_signed": 16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001003ffc",
+      "packets": [
+        "120001019010",
+        "120001003ffc",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 706,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 16383,
+      "stored_word": 16383,
+      "effective_signed": 16380,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001003ffc",
+      "packets": [
+        "120001019010",
+        "120001003ffc",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 706,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    },
+    {
+      "mode": 3,
+      "stored_signed": 32767,
+      "stored_word": 32767,
+      "effective_signed": 32760,
+      "stored_record_unchanged": true,
+      "bfo_packet_hex": "120001007ff8",
+      "packets": [
+        "120001019010",
+        "120001007ff8",
+        "8004",
+        "8104",
+        "280000"
+      ],
+      "load_call": {
+        "r0": 0,
+        "r1": 10,
+        "instructions": 706,
+        "hardware_hooks": 0
+      },
+      "apply_call": {
+        "r0": 536871117,
+        "r1": 3,
+        "instructions": 212,
+        "hardware_hooks": 12
+      }
+    }
+  ],
+  "passed": 34
+}

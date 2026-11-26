@@ -1,23 +1,37 @@
-# UV-K10 Pro：官方 Android APK 的 BLE 证据与待确认绑定
+# UV-K10 Pro / K8：官方 Android BLE 配置与实现
 
-核对日期：2026-11-26。范围仅限已取得的官方 **QUANSHENG 1.1.0-64 / 1.1.0-68** 两份 APK；没有运行 APK、连接实机或获得手机 HCI 抓包。
+核对日期：2026-11-26。已恢复官方 **QUANSHENG 1.1.0-64 / 1.1.0-68** APK 中的 Dart AOT 方法、调用目标和对象字段。K8 的服务、发送特征、接收特征已取得型号专属引用证据；详细发送策略和帧校验分析以 APK 68 为准。本轮没有连接实机、运行完整 Android App 或取得 HCI 抓包。
 
-## 结论
+## 已确定的默认配置
 
-**目前不能发布一个已经证实属于 UV-K10 Pro / K8 的默认 BLE profile。** 两份 APK 都包含独立的 K8 协议名称、K8 专用 BLE 诊断字符串和 K8 参数资产，但同时包含 K82、UV5 资产及其他协议实现。FFE、FFF、FF12 等 UUID 常量也同时存在。此次静态提取没有恢复出“用户所选 UV-K10 Pro → K8RadioProtocol 实例 → GATT 服务/特征选择 → 帧编码配置”的完整引用链。
+`src/protocol/transports.mjs` 导出 `DEFAULT_K8_BLE_PROFILE`，可直接用于 `WebBluetoothTransport.request({...DEFAULT_K8_BLE_PROFILE})`。该配置来自 **K8RadioProtocol → BleGattProfile.k8 → GATT 消费代码** 的调用和数据流，不再依赖字符串相邻关系。
 
-因此 `serviceUuid`、`writeUuid`、`notifyUuid`、`writeMode`、`wireMode`、`responseChecksum` 与有效分片大小均保持**待确认**。本项目的 BLE 入口属于需要用户提供经核实 profile 的实验传输接口；不能据此宣称已完整替代官方 Android App。未知 UUID 也不能用其他全盛产品、常见串口透传模块或 PC 串口配置补齐。
+| 配置项 | 官方 K8 行为 / Web 实现 |
+|---|---|
+| 产品名称 | `UV-K10 Pro`，存于 `BleGattProfile.k8` 构造结果 |
+| 服务 UUID | `0000ff12-0000-1000-8000-00805f9b34fb` |
+| TX 特征 UUID | `0000fff2-0000-1000-8000-00805f9b34fb` |
+| RX 首选特征 UUID | `0000fff3-0000-1000-8000-00805f9b34fb` |
+| 写方式 | `withResponse`，Web 使用 `writeValueWithResponse()` |
+| 帧体 | `plain`，没有应用 PC/USB 的 XOR 密钥 |
+| 请求校验 | CRC-16/X25 |
+| 响应校验 | `crc16-x25-or-placeholder`：`FFFF` 占位或实际 X25；占位不标记为 CRC 已验证 |
+| 请求长度方言 | `android-k8`：HELLO 声明 24，WRITE 声明 140；WRITE 仍保留 128 字节数据槽 |
+| 每帧写入策略 | `whole-frame`：完整帧作为一次特征值写入 |
+| 帧间等待 | 120 ms；适配器串行化写入，避免提前收到响应时跳过等待 |
 
-本文件没有修改 `src/protocol/` 或 `src/app.mjs`，也没有添加自动尝试多个 UUID/profile 的逻辑。
+这些 UUID 不是唯一机型标识。同包的其他独立协议也可能使用同一服务组；Web 仍要求明确选定 UV-K10 Pro，并保留固件、参数版本、密码认证、当前会话备份和读回校验。**静态确定默认连接参数，不等于通过实机验收。**
+
+证据：[`ble-aot-profile.json`](evidence/ble-aot-profile.json)、[`ble-crc-replay.json`](evidence/ble-crc-replay.json)。此前 [`ble-static-inventory.json`](evidence/ble-static-inventory.json) 保留为历史字符串清单，其中“角色未确定”结论已被新的调用/数据流证据补齐。
 
 ## 1. 样本与复现锚点
 
-厂商发布记录与 APK 来源沿用 [协议证据说明](protocol.md#1-证据范围与追溯)：
+官方发布来源沿用 [协议证据说明](protocol.md#1-证据范围与追溯)：
 
-- [厂商 Android 英文发布条目 11398](https://cms.qsfj.com/api/entries/files/11398?fl-language=en)。下载样本为 `QUANSHENG-1.1.0-64.apk`。
-- [厂商 Android 中文发布条目 11234](https://cms.qsfj.com/api/entries/files/11234?fl-language=zh)。条目标题指向 UV-K10 Pro Android App 1.1.0-68；本轮使用已保存的对应 APK。
+- [厂商 Android 英文条目 11398](https://cms.qsfj.com/api/entries/files/11398?fl-language=en)，保存样本为 `QUANSHENG-1.1.0-64.apk`。
+- [厂商 Android 中文条目 11234](https://cms.qsfj.com/api/entries/files/11234?fl-language=zh)，保存样本为 `QUANSHENG-1.1.0-68.apk`。
 
-在线条目可能更新；以下 SHA-256 才是本次结论的样本范围。机器可读记录见 [ble-static-inventory.json](evidence/ble-static-inventory.json)。
+在线条目可能更新，以下 SHA-256 确定本次样本范围。
 
 | 样本 | SHA-256 |
 |---|---|
@@ -26,120 +40,126 @@
 | APK 64 内 `lib/arm64-v8a/libapp.so` | `8851fea2ebc54442d12062cba11673d3d8a0aad05dbcfd15009b657b21da7a4f` |
 | APK 68 内 `lib/arm64-v8a/libapp.so` | `c2cbc6245093682907109259fa1c888fa1f41c6505a48d113e0b5ca09fd5dabb` |
 
-两份 `libapp.so` 分别为 12,518,288 / 12,583,824 字节，均为 stripped AArch64 ELF。各自 `libflutter.so` 内都可定位到 `3.12.1 (stable)`；两份 VM snapshot 的 hash 都是 `ace654289f5abc240509fc941453ebc5`，flags 含 `arm64 android compressed-pointers`。这些标记只说明运行时格式相同，不能证明两版 App 的分支行为完全相同。[证据：本地样本、JSON inventory]
+两份库均为 stripped AArch64 ELF，使用 Dart 3.12.1，VM snapshot hash 为 `ace654289f5abc240509fc941453ebc5`。本次为匹配该格式构建 Dart SDK 与 Blutter，读取 snapshot 中的方法、对象池及类型元数据，再检查对应 ARM64 指令。工具版本与样本大小记录在 `ble-aot-profile.json`。整个 APK、厂商二进制及完整反汇编不进入本仓库。
 
-`readelf -Ws libapp.so` 仅列出 6 个动态符号条目，其中非空条目为 Dart VM/isolate 的 data/instructions snapshot 和 build ID。以下偏移都是**解压后的 `libapp.so` 文件字节偏移**，不是 APK 内偏移、运行时虚拟地址或已识别函数入口。
+以下函数地址均为**精确样本的 ELF 虚拟代码地址**；不是 APK 压缩包偏移，也不是字符串清单里的文件偏移。Dart 对象池中的 `Obj!…@…` 是分析器的对象标识，不能当作特征句柄或代码入口。
 
-## 2. 已确认的资产和型号隔离
+## 2. 型号、服务和特征的实际引用链
 
-两版 APK 的 `assets/flutter_assets/assets/products/data.json` 内容相同，产品名称列表仅有 `UV-K10 Pro`，文件 SHA-256 为 `efdaa8efdc8bfcef1d4d6a98a35ea7acffafcf4ab752d92106ad940c598354be`。但同一 APK 同时打包：
-
-| 资产 | 确认内容 | 不能据此推导的内容 |
+| 链路 | APK 64 | APK 68 |
 |---|---|---|
-| `assets/flutter_assets/assets/K8.json` | `deviceModel` 为 `K8` | 不能仅凭资产存在认定运行时已经选择 K8 |
-| `assets/flutter_assets/assets/K82.json` | `deviceModel` 为 `K82` | 不能借用其地址或 BLE 行为给 K8 |
-| `assets/flutter_assets/assets/UV5.json` | 另一个独立参数资产 | 不能因同包分发就把布局合并 |
-| `assets/flutter_assets/assets/products/data.json` | 展示的产品名称为 UV-K10 Pro | 产品展示列表没有提供 GATT 路由映射 |
+| `K8RadioProtocol.gattProfile` | `0xBD6F18` | `0xBE82A4` |
+| getter 调用 `BleGattProfile.k8` | `0xBD6F2C → 0xBD6F44` | `0xBE82B8 → 0xBE82D0` |
+| 构造结果名称写入 | `0xBD6FE0`：`UV-K10 Pro` | `0xBE836C`：`UV-K10 Pro` |
+| `field_b` 服务 UUID | `0xBD6FE8`：FF12 | `0xBE8374`：FF12 |
+| `field_f` TX UUID | `0xBD6FF0`：FFF2 | `0xBE837C`：FFF2 |
+| `field_13` RX UUID | `0xBD6FF8`：FFF3 | `0xBE8384`：FFF3 |
 
-K8 参数资产有 BLE 设备名称等配置字段，但未发现可直接读取的 service/write/notify UUID 绑定。`libapp.so` 中又同时存在 `K8RadioProtocol`、`K82RadioProtocol`、`BopttRadioProtocol`，进一步说明必须找到实际路由，而不能把整个 App 当成只有一种协议。[证据：两份 APK 的资产与下表定位]
+仅看构造字段仍不足以确定角色，因此继续追踪 APK 68 的消费端：
 
-| 静态字符串/标记 | APK 64 偏移 | APK 68 偏移 |
-|---|---:|---:|
-| `package:walkie_talkie_main/core/protocol/k8/k8_radio_protocol.dart` | `0x36747` | `0x36797` |
-| `K8RadioProtocol` | `0x9F525` | `0x9F638` |
-| `K82RadioProtocol` | `0x6CFB6` | `0x6D074` |
-| `BopttRadioProtocol` | `0xC6B9D` | `0xC6CFE` |
-| `assets/K8.json` | `0xB07B0` | `0xB08EA` |
-| `assets/K82.json` | `0xE1EC5` | `0xE2081` |
-| `UV-K10 Pro` | `0x86C33` | `0x86CFA` |
+1. `BleGattProfile.resolveFromServices`（`0x481004`）把 `field_b` 与发现的 service UUID 比较，由此确定 FF12 是服务。
+2. `FlutterBleRadioTransport.connect`（`0x47C53C`）读取 `field_f`、`field_13`，分别与所选服务中的 characteristic UUID 比较。比较范围为 `0x47D01C..0x47D070` 与 `0x47D090..0x47D0D0`。
+3. 两个特征都有非空检查；FFF2 匹配对象在 `0x47D154` 存入 transport 的 `field_23`。发送函数 `_sendLocked` 在 `0x76F3F4` 读取同一字段并交给特征写方法，确定 FFF2 是 TX。
+4. `_subscribeAllNotifications`（`0x47F378`）只考虑 `notify` 或 `indicate` 为真的特征，并在 K8 分支优先选择 `field_13` 的 FFF3，确定它的接收角色。
 
-这是存在性证据，不是调用图证据；相邻字符串的位置也不构成函数引用关系。
+APK 的构造函数还对 FFF1 字符串调用了 `Guid._toBytes`，但该结果没有存入上述 service/TX/RX 字段。这里不给 FFF1 编造角色。FFE 组也不作为 K8 的备用 UUID 表。
 
-## 3. UUID 常量：所有角色仍待核对
+官方通知函数在没有合格首选通知特征时，会考虑所选服务中的其他通知特征。Web 的默认配置严格要求 FFF3 支持通知或指示；若设备暴露属性不同，先检查真实特征，再由用户选择并保存手工配置，不自动混入其他来源的数据流。[证据：`ble-aot-profile.json` 的 `bindings`、`apk68_consumers.characteristic_match` 与 `notification_selection`]
 
-以下前缀都使用 Bluetooth Base UUID 后缀 `-0000-1000-8000-00805f9b34fb`：
+## 3. 写方式、MTU 和发送边界
 
-| UUID 前缀 | APK 64 偏移 | APK 68 偏移 | 本轮可确认的角色 |
-|---|---:|---:|---|
-| `0000ffe1` | `0x77186` | `0x77244` | 未确认 |
-| `0000ffe2` | `0x4CBC6` | `0x4CC79` | 未确认 |
-| `0000ffe3` | `0xA5322` | `0xA5435` | 未确认 |
-| `0000fff1` | `0x687B4` | `0x68872` | 未确认 |
-| `0000fff2` | `0x5C968` | `0x5CA26` | 未确认 |
-| `0000fff3` | `0x6E0BF` | `0x6E17D` | 未确认 |
-| `0000ff12` | `0xADD43` | `0xADE7D` | 未确认 |
-| `00002902` | `0xE1AD3` | `0xE1C8F` | 标准 CCCD UUID 常量；不是 K8 专用服务证据 |
+`_writeOnce`（`0x7704F4`）及 `_writeOnceAllowLong`（`0x76F680`）通过 `_writeWithBusyRetry`（`0x76F740`）进入 `BluetoothCharacteristic.write`（`0x76F960`）。后者在 `0x76FA90` 为请求写入 `BmWriteType`，对象元数据明确给出名称 **withResponse**。单看枚举数字 0 没有用作最终依据。
 
-`0x2902` 的标准名称是 Client Characteristic Configuration，见 [Bluetooth SIG Assigned Numbers](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/index-en.html)。APK 中存在此常量，仍不能确定它关联到哪一个 K8 特征。
+普通写与长写传入的布尔值不同，它们最终进入请求对象 `field_23`。`BmWriteCharacteristicRequest.toMap` 在 `0x7700B4` 将该字段映射到命名键 **allow_long_write**，因此这个布尔值不是 writeWithoutResponse 开关。[证据：`ble-aot-profile.json` 的 `write_mode`]
 
-没有把 FFE/FFF 组的数字顺序解释为 service/write/notify 顺序，也没有因未找到某个完整 UUID 字符串就断言该服务不存在：服务可能通过枚举筛选、短 UUID、运行时构造或其他形式选择。
+官方 `_negotiateMtu` 的顺序为：
 
-## 4. K8 专用日志能帮助下一次定位什么
+1. 请求 MTU **253**，参数位于 `0x480CA4`。
+2. 失败后请求 MTU **78**，参数位于 `0x480C58`。
+3. 再失败则使用当前 `mtuNow`。
 
-| 完整定位前缀 | APK 64 偏移 | APK 68 偏移 | 若实机运行时出现，可补齐的证据 |
-|---|---:|---:|---|
-| `K8 GATT char ` | `0x8C11F` | `0x8C1E6` | 枚举到的特征及属性；仍需服务归属 |
-| `K8 BLE enabling notify on ` | `0xCF881` | `0xCFA0C` | 实际订阅的通知特征 |
-| `K8 BLE RX via ` | `0xDF482` | `0xDF61F` | 收到数据的实际特征与方向 |
-| `K8 BLE TX (` | `0xA51D0` | `0xA52E3` | 发送帧及长度的线索 |
-| `K8 BLE TX long (` | `0x58B3D` | `0x58BFB` | 长发送/分片分支的线索 |
-| `K8 BLE MTU negotiated=` | `0xC5118` | `0xC5279` | 本次连接的协商 MTU |
-| `K8 CRC mismatch: expected=0x` | `0x88D91` | `0x88E58` | 某条 K8 解析路径带 CRC 比较逻辑 |
+`_sendLocked` 计算单次负载 `min(MTU - 3, 250)`；若结果小于 1，则使用 20。帧未超过该负载时直接写；超过时，**K8 分支将整个帧交给允许长写的方法**。同函数中的手工分片和 15 ms 分片间隔属于另一条协议分支，不能照搬为 K8 默认逻辑。K8 每帧完成后另有 **120 ms** 等待，来自对象 `Duration@a51d41` 的 120000 微秒值。[证据：`ble-aot-profile.json` 的 `mtu`、`send`]
 
-同样定位到 `K8 frame header must be AB CD`、`K8 frame tail must be DC BA`。这支持 App 中存在 K8 帧校验实现，但不能单凭报错字符串确认实际 BLE 通道使用 plain 或 XOR、CRC 多项式、反射/初值/终值，或是否接受固定 `FFFF`。库中的 PC/USB 和辅助 UART 已核实行为见 [帧格式、CRC 与 XOR](protocol.md#4-帧格式crc-与-xor)，本轮没有建立“BLE 模块连接到哪条 MCU UART”的硬件证据，不能把其中一条直接指定为 BLE。
+### Web 对应实现与平台差异
 
-这些字符串可能只出现在未执行的分支或被运行时日志开关抑制。release APK 能否实际输出，仍需观察；不能把它们当成已经收到的设备日志。
+Web Bluetooth 提供 `writeValueWithResponse()`，没有公开与 Android插件等价的 `requestMtu()` 和 `allow_long_write` 控制。默认适配器把完整帧作为一个值交给浏览器，保留官方应用层写入边界；浏览器、操作系统与该设备之间能否按所需方式完成长值写入，仍需要真实设备验证。Web 不伪造“已协商到 253”的状态。
 
-## 5. 未闭合的证据链
+Chromium 的特征写实现拒绝超过 **512 字节**的属性值，适配器也在调用前检查这一上限；协议层继续使用已建立的 BLE 收帧边界 **199 字节**，没有因为浏览器可接受 512 就放大无线电接收缓冲区。152 字节的完整 WRITE 帧在两者范围内。[Web Bluetooth 规范](https://webbluetoothcg.github.io/web-bluetooth/)；[Chromium 特征写实现](https://chromium.googlesource.com/chromium/src/+/76e47a170aa0d395b2893eecf8c22148251fa6d0/third_party/blink/renderer/modules/bluetooth/bluetooth_remote_gatt_characteristic.cc)；收帧边界见 [协议说明](protocol.md)。
 
-| 要确认的字段 | 目前缺少什么 | 最小有效证据 |
-|---|---|---|
-| K8 型号路由 | 产品选择/识别逻辑到 K8 协议实例的引用 | 同次会话的产品选择、K8 路由日志，或恢复后的构造调用图 |
-| `serviceUuid` | 所选特征所属服务 | 该设备本次 GATT 服务发现结果及 handle 范围 |
-| `writeUuid` | 发送 HELLO/读请求时使用的特征 | ATT 写入 handle 对应的 characteristic UUID |
-| `notifyUuid` | 开启通知并返回 K8 响应的特征 | CCCD 配置、通知 handle 和响应数据对应关系 |
-| `writeMode` | App 实际使用 write request、write command 或其他过程 | HELLO/读命令发送时的 ATT opcode 和应答序列 |
-| `wireMode` | BLE 帧体是否 XOR | 完整 HELLO TX/RX 与已核实帧格式对照 |
-| `responseChecksum` | 响应 checksum 是计算值还是固定占位 | 至少 HELLO 与不同内容的读响应，解码后逐帧计算比较 |
-| `mtuPayload` / 分片 | App 协商、实际写入大小及组帧行为 | MTU 交换、每个 ATT payload 长度、长读响应的连续分片 |
+适配器对每次 `write()` 复制数据并串行化。即使回复先于浏览器写 Promise 返回，下一帧也会等待前帧与 120 ms 间隔。失败的整值写会结束连接，不静默改成小片重发；重连后的连接代号也阻止旧连接排队数据进入新会话。
 
-本轮只完成资产、ELF 动态符号和静态字节索引。Dart AOT 的完整对象池/函数到常量引用未恢复，没有以 native 符号或普通字符串相邻关系替代这一步。为控制本轮范围，没有继续编译大型 Dart 分析运行时，也没有把未验证的工具输出当成依据。
+手工 `chunked` 配置保留 `mtuPayload` 的 1..244 范围。默认配置中的 `mtuPayload: 20` 仅为可移植配置结构的字段，**whole-frame 模式不会用它切片**；它也不表示当前 ATT MTU。[实现：`src/protocol/transports.mjs`]
 
-## 6. 最小实机取证流程：无需写入信道
+## 4. 帧编码与请求长度方言
 
-以下是后续验证计划，本轮没有执行。
+APK 68 的 `K8FrameCodec.encode`（`0x7725AC`）构造明文 `AB CD` 帧、内层命令/长度、payload、X25 和 `DC BA`。`K8Session.request` 在 `0x76F170..0x76F17C` 把编码后字节直接交给传输层；这条链没有 PC/USB 的 XOR 变换。
 
-1. 记录机身型号 **UV-K10 Pro**、固件版本，以及使用的官方 APK 的 SHA-256。只连接这一台目标电台；保留本次在 App 内选择的产品/型号信息。
-2. 在 Android 开发者选项启用 **Bluetooth HCI snoop log**，重新启动手机蓝牙后再连接。AOSP 官方说明了启用顺序、通常的 `data/misc/bluetooth/logs` 位置，以及通过 bug report 和 `btsnooz.py` 提取的路径；不同手机的导出方式以其实际权限为准。[AOSP：Verify and debug](https://source.android.com/docs/core/connect/bluetooth/verifying_debugging)
-3. 启动官方 App，选择 UV-K10 Pro，连接并执行一次正常“读取设备”。这会发送 GATT 写操作来传送读请求，因此**不需要执行电台 Flash/信道写入**也能观察 `writeMode`。已知 HELLO 会同步电台 RTC；连接不能表述成完全无副作用。
-4. 保存从连接开始到首批读取完成的 HCI/ATT 会话，至少包含服务/特征发现、CCCD 配置、MTU 交换、完整 HELLO 请求/响应、一个以上参数读请求/响应。若系统缓存省略 GATT 发现，另提供同一设备的服务/特征枚举结果，用 handle 关联；只有十六进制通知内容不足以确认 UUID。
-5. 若官方 App 的 K8 日志可见，同时保存上一节日志前缀对应的完整行和时间。提取目标会话所需部分即可；无需提供其他设备流量或密码。
+`K8FrameCodec.decode`（`0x771538`）在 `0x77187C..0x771884` 先比较收到的校验字是否为 `FFFF`，相等则直接接受；否则在 `0x7718A8` 计算 X25，并在 `0x7718B8..0x7718BC` 比较，不等则报错。`K8Crc.compute`（`0x771BB0`）使用初值 FFFF、反射多项式 8408、最后取反并保留 16 位。
 
-在 Wireshark 中可先用 `btatt` 展示过滤器，结合目标连接和服务 handle 范围定位数据；`btatt.opcode`、`btatt.handle` 等字段以 [Wireshark ATT 显示过滤器参考](https://www.wireshark.org/docs/dfref/b/btatt.html) 为准。保留原始完整会话以便重组，不要把单个 ATT 通知误当成完整的 K8 帧。
+因此实现新增 `responseChecksum: 'crc16-x25-or-placeholder'`：
 
-验收时必须把以上字段关联到**同一台电台、同一 APK、同一次 K8 会话**。先证明模型路由和 UUID，再重组帧核对长度、命令、地址、XOR 与 checksum；最后才把经过复核的 profile 转成显式配置及黄金帧测试。对一次响应恰好出现 `FFFF` 的观察，应使用其他不同内容响应继续排除偶合，不能直接宣布为占位校验。
+- 响应为 FFFF 时：`checksumStatus: 'placeholder-unverified'`、`crcVerified: false`。
+- 其他校验字：必须与 X25 一致，一致后才标记 `crc16-x25-verified`。
+- 即便恰好计算出的 X25 也为 FFFF，兼容响应模式仍将收到的 FFFF 标为未验证，避免把可绕过校验的占位分支冒充完整性保障。
+- 请求始终计算并校验真实 X25；该兼容例外不扩展到请求方向。原来的“仅占位”和“严格 X25”两种配置仍可使用。
 
-## 7. 本地重现常量索引
+Android 和 CPS 的 HELLO/WRITE 内层长度声明不同：
 
-以下 Python 只读取指定 APK，不运行其中代码；无需安装 Android 或蓝牙依赖：
+| 指令 | 共同的实际 payload | CPS 0.56 的声明长度 | APK 68 的声明长度 |
+|---|---:|---:|---:|
+| HELLO | 24 字节 | 4 | 24 |
+| READ | 12 字节 | 12 | 12 |
+| WRITE | 12 字节头 + 128 字节数据槽，共 140 | 12 | 140 |
 
-```python
-import hashlib, re, zipfile
-from pathlib import Path
+APK 的 `K8ConnectionRequest.toPayload`（`0x772A28`）分配 24 字节。`encodeWriteRequest`（`0xBDF6AC`）分配 140 字节，只把 `count` 个数据复制到 offset 12，再把**整个固定长度数组**交给通用帧编码器。因此部分块写入仍有零填充，不能缩短为 `12 + count` 字节。
 
-apk = Path('QUANSHENG-1.1.0-68.apk')
-print('APK SHA-256:', hashlib.sha256(apk.read_bytes()).hexdigest())
-with zipfile.ZipFile(apk) as archive:
-    app = archive.read('lib/arm64-v8a/libapp.so')
-    engine = archive.read('lib/arm64-v8a/libflutter.so')
-    print('libapp SHA-256:', hashlib.sha256(app).hexdigest())
-    print('Dart:', re.search(rb'\d+\.\d+\.\d+ \(stable\)', engine).group().decode())
-    for match in re.finditer(rb'0000[0-9a-f]{4}-0000-1000-8000-00805f9b34fb', app):
-        print(hex(match.start()), match.group().decode(), 'role=unresolved')
-    for needle in (b'K8RadioProtocol', b'K82RadioProtocol', b'BopttRadioProtocol',
-                   b'K8 GATT char ', b'K8 BLE enabling notify on ',
-                   b'K8 BLE MTU negotiated=', b'K8 BLE RX via '):
-        print(hex(app.find(needle)), needle.decode())
+`buildHello(..., {lengthConvention: 'android-k8'})` 与 `buildWrite(..., {lengthConvention: 'android-k8'})` 按此生成；未指定时维持 `cps-0.56`。`ProgrammingSession` 从 `transport.protocolProfile` 继承方言用于连接、普通写入及凭据区的专用写入流程。[证据：`ble-aot-profile.json` 的 `message_lengths`；代码：`src/protocol/frame.mjs`、`src/protocol/session.mjs`]
+
+## 5. 服务检查与配置文件
+
+`discoverBleCharacteristics({serviceUuid, device?})` 检查一个明确指定的服务。它返回设备句柄、服务 UUID、所有特征 UUID，以及浏览器报告的九个真实属性：`broadcast`、`read`、`writeWithoutResponse`、`write`、`notify`、`indicate`、`authenticatedSignedWrites`、`reliableWrite`、`writableAuxiliaries`。
+
+检查期间不读取特征、不订阅通知、不发送 HELLO。完成或失败后即断开；已有活动 GATT 会话则拒绝检查。设备选择器使用 `acceptAllDevices` 和仅含该服务的 `optionalServices`，允许手动选择未在广播中列出服务的外设。该过程不推断机型，也不自动尝试其他 UUID。
+
+普通连接也使用相同的 `acceptAllDevices` 与单个 `optionalServices`。这是明确恢复的官方扫描行为：APK 68 的扫描页在 `0x797B0C` 调用 `FlutterBluePlus.startScan(0x797B20)`；扫描设置在 `0x797C60..0x797C68` 写入空的服务 UUID 列表，`BmScanSettings.toMap` 又在 `0x798ED8` 将该空列表映射为 `with_services`。服务存在于 GATT，并不意味着设备必须在广播中公布该服务；因此选择器不额外要求广播 FF12。此规则不会授权未知服务，也不会在选中设备后尝试其他型号的 UUID。[证据：`ble-aot-profile.json` 的 `scan`]
+
+`WebBluetoothTransport.request({...profile, device})` 可复用刚刚授权的设备句柄，但会重新获取服务与特征对象；连接时只取 profile 指定的服务，检查 TX 是否支持指定写方式，RX 是否支持 notify/indicate，检查失败在订阅或发送前拒绝。设备句柄仅保留在进程内，不进入导出文件。[Web Bluetooth 规范](https://webbluetoothcg.github.io/web-bluetooth/)
+
+`serializeBleProfile(profile)` / `parseBleProfile(text)` 使用以下封装：
+
+```json
+{
+  "format": "uv-k10pro-ble-profile",
+  "version": 1,
+  "model": "UV-K10-PRO-K8",
+  "profile": {
+    "serviceUuid": "0000ff12-0000-1000-8000-00805f9b34fb",
+    "writeUuid": "0000fff2-0000-1000-8000-00805f9b34fb",
+    "notifyUuid": "0000fff3-0000-1000-8000-00805f9b34fb",
+    "writeMode": "withResponse",
+    "wireMode": "plain",
+    "responseChecksum": "crc16-x25-or-placeholder",
+    "mtuPayload": 20,
+    "writeStrategy": "whole-frame",
+    "interWriteDelayMs": 120,
+    "lengthConvention": "android-k8"
+  }
+}
 ```
 
-把输入换成已核对 SHA-256 的 APK 64 可复查另一列。`bytes.find()` 返回的位置只是字符串数据位置；该脚本特意不输出推测的 profile。
+导入上限为 16 KiB UTF-8，验证格式、版本、型号、三个完整 UUID、枚举、分片尺寸与 0..1000 ms 等待范围。整帧写策略要求 `withResponse`。旧版配置缺少三个新增字段时，沿用 `chunked`、0 ms、`cps-0.56`，不会默默变成 Android 预设。导出严格列出已知配置字段；密码、设备 ID/名称、设备句柄与会话状态不会被序列化。型号标签只描述配置目标，不能替代设备确认。
+
+## 6. 验证与剩余实机工作
+
+[`tests/reference/replay-ble-crc.py`](../tests/reference/replay-ble-crc.py) 在 Unicorn AArch64 中读取精确 SHA-256 样本，执行原始 CRC 每字节算术、CRC 收尾与响应校验比较指令块。输入覆盖空数据、标准校验向量、全 256 种字节、全零/全 FF、HELLO、READ、固定槽 WRITE、ACK，以及实际 CRC 恰等于 FFFF 的边界值：**10 组 CRC + 30 组分支，40 项通过**。生成的四个帧向量由独立布局构造与原指令计算的 CRC 组成。
+
+复现命令（需自行取得上述 APK 中的 ARM64 `libapp.so`，并安装 Python `unicorn`）：
+
+```sh
+python tests/reference/replay-ble-crc.py /path/to/libapp.so --output docs/evidence/ble-crc-replay.json
+node --test tests/ble-frame.test.mjs tests/ble-profile.test.mjs tests/protocol-transports.test.mjs tests/protocol.test.mjs
+```
+
+Node 测试覆盖 profile 文件隔离、手工发现无协议发送、GATT 属性、句柄复用、连接失败/断开清理、完整值写入、120 ms 顺序、禁止失败后切片重试、旧队列隔离、混合 CRC/占位响应、两种请求长度方言和会话实际读写。原指令实验的范围是上述代码块；Dart 分配器、完整 App、BLE 栈、射频及芯片外设没有被仿真。
+
+需要实机补齐的项目集中于浏览器与设备的配合：实际 GATT 属性、浏览器/系统对完整 152 字节值写入的支持、订阅后的回复时序、长时间读写和断连重连后的行为。恢复出的型号绑定与这些物理验收项分别记录，不把离线测试结果当作实机成功。

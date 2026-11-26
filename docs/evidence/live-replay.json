@@ -1,0 +1,1716 @@
+{
+  "schema_version": 1,
+  "sample_sha256": "061759672cc69a1b00420ce6fae67b0756d3db111f8fa4329cadc940dcd17f17",
+  "scope": "Exact stock ARM parser/dispatcher/FCS/emitter instructions. Synthetic RAM and explicit hardware boundaries; RF/physical GPS/BLE delivery unverified.",
+  "sample_aprs_packet_hex": "82a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f",
+  "passed": 24,
+  "cases": [
+    {
+      "kind": "location-hello",
+      "transport": 0,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800ab6e20e616bf3d720f04e340707f9efbe4077b232e910d40076c94710b2bf1a72f6f0cf01bb019542135d5401303e980166c14e62e910d40decadcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 0,
+      "secondary_state": 0,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 1152,
+        "hardware_hooks": 9
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4683,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886648,
+            4,
+            64,
+            536886680
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886680,
+            56,
+            64,
+            536886680
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886648,
+            4,
+            536886648,
+            536886680
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            4,
+            536886648,
+            3135032030
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 0,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800ab6e20e616bf3d720f04e340707f9efbe4077b232f910d40076c94710b2bf1a72f6f0cf01bb019542135d5401303e980166c14e62e910d40decadcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 1,
+      "secondary_state": 0,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 1152,
+        "hardware_hooks": 9
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4683,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886648,
+            4,
+            64,
+            536886680
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886680,
+            56,
+            64,
+            536886680
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886648,
+            4,
+            536886648,
+            536886680
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            4,
+            536886648,
+            3135032030
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 0,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800ab6e20e616bf3d720f04e340707f9efbe4077b232f910d40076c94710b2bf1a72f6f0cf01bb019542135d5401303e980166c14e62e910d40decadcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 1,
+      "secondary_state": 1,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 1152,
+        "hardware_hooks": 9
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4683,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886648,
+            4,
+            64,
+            536886680
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886680,
+            56,
+            64,
+            536886680
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886648,
+            4,
+            536886648,
+            536886680
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            4,
+            536886648,
+            3135032030
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 1,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800ab6e20e616bf3d720f04e340707f9efbe4077b232e910d40076c94710b2bf1a72f6f0cf01bb019542135d5401303e980166c14e62e910d40decadcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 0,
+      "secondary_state": 0,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 1227,
+        "hardware_hooks": 7
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4814,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "USB_endpoint_81_capture",
+          "pc": "0x0801d7f8",
+          "args": [
+            129,
+            536879200,
+            64,
+            1074630958
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            536879200,
+            64,
+            1074630958
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 1,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800ab6e20e616bf3d720f04e340707f9efbe4077b232f910d40076c94710b2bf1a72f6f0cf01bb019542135d5401303e980166c14e62e910d40decadcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 1,
+      "secondary_state": 0,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 1227,
+        "hardware_hooks": 7
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4814,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "USB_endpoint_81_capture",
+          "pc": "0x0801d7f8",
+          "args": [
+            129,
+            536879200,
+            64,
+            1074630958
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            536879200,
+            64,
+            1074630958
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 1,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800ab6e20e616bf3d720f04e340707f9efbe4077b232f910d40076c94710b2bf1a72f6f0cf01bb019542135d5401303e980166c14e62e910d40decadcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 1,
+      "secondary_state": 1,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 1227,
+        "hardware_hooks": 7
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4814,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "USB_endpoint_81_capture",
+          "pc": "0x0801d7f8",
+          "args": [
+            129,
+            536879200,
+            64,
+            1074630958
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            536879200,
+            64,
+            1074630958
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 2,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800bd023400382e30322e313600637c777bf26b6fc500000000265941311828182739031816352114140000000000000000000000000000000090fbdcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 0,
+      "secondary_state": 0,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 4646,
+        "hardware_hooks": 10
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4365,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "wall-clock delay boundary",
+          "pc": "0x0801d000",
+          "args": [
+            30,
+            10,
+            4294967279,
+            239
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886648,
+            4,
+            1135,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886680,
+            56,
+            1135,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886648,
+            4,
+            1135,
+            0
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            4,
+            1135,
+            3135044496
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 2,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800bd023400382e30322e313600637c777bf26b6fc5010000002659413118281827390318163521141400000000000000000000000000000000df57dcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 1,
+      "secondary_state": 0,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 4660,
+        "hardware_hooks": 10
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4365,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "wall-clock delay boundary",
+          "pc": "0x0801d000",
+          "args": [
+            30,
+            10,
+            4294967279,
+            239
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886648,
+            4,
+            43040,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886680,
+            56,
+            43040,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886648,
+            4,
+            43040,
+            0
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            4,
+            43040,
+            3135002591
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "location-hello",
+      "transport": 2,
+      "request_body_hex": "bc02180078563412808574670153570078760f02bccc5b07efffffff",
+      "response_frame_hex": "abcd3800bd023400382e30322e313600637c777bf26b6fc5010000002659413118281827390318163521141400000000000000000000000000000000df57dcba",
+      "rtc_seconds": 1735689600,
+      "latitude_packed": 34567800,
+      "longitude_packed": 123456700,
+      "altitude_signed": -17,
+      "hemispheres": "SW",
+      "access_state": 1,
+      "secondary_state": 1,
+      "access_flags_unchanged": true,
+      "new_challenge_hex": "26594131182818273903181635211414",
+      "execution": {
+        "r0": 0,
+        "r1": 36,
+        "instructions": 4660,
+        "hardware_hooks": 10
+      },
+      "parser_execution": {
+        "r0": 36,
+        "r1": 65535,
+        "instructions": 4365,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            305419896,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            826366246,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            655894552,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "deterministic RNG input",
+          "pc": "0x0800220c",
+          "args": [
+            370672441,
+            536871104,
+            305419896,
+            120
+          ]
+        },
+        {
+          "function": "RTC write capture",
+          "pc": "0x08019ac8",
+          "args": [
+            1735689600,
+            4294967295,
+            1735689600,
+            128
+          ]
+        },
+        {
+          "function": "wall-clock delay boundary",
+          "pc": "0x0801d000",
+          "args": [
+            30,
+            10,
+            4294967279,
+            239
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886648,
+            4,
+            43040,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886680,
+            56,
+            43040,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886648,
+            4,
+            43040,
+            0
+          ]
+        },
+        {
+          "function": "UI status boundary",
+          "pc": "0x08006d20",
+          "args": [
+            1,
+            4,
+            43040,
+            3135002591
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-send",
+      "transport": 0,
+      "synthetic_gate_rejected": false,
+      "request_body_hex": "dd0284002200000082a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "response_frame_hex": "abcd0800c86e10e62e930d40decadcba",
+      "result": 0,
+      "rf_boundary_calls": [
+        {
+          "data_hex": "82a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f",
+          "length": 34,
+          "mode": 1
+        }
+      ],
+      "execution": {
+        "r0": 536886712,
+        "r1": 3859836616,
+        "instructions": 199,
+        "hardware_hooks": 5
+      },
+      "parser_execution": {
+        "r0": 144,
+        "r1": 65535,
+        "instructions": 13813,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "explicit RF permission/state boundary",
+          "pc": "0x08005574",
+          "args": [
+            1,
+            536872132,
+            733,
+            0
+          ]
+        },
+        {
+          "function": "RF packet capture without transmitting",
+          "pc": "0x0800542c",
+          "args": [
+            536872140,
+            34,
+            1,
+            0
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886712,
+            4,
+            64,
+            536886744
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886744,
+            8,
+            64,
+            536886744
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886712,
+            4,
+            536886712,
+            536886744
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-send",
+      "transport": 0,
+      "synthetic_gate_rejected": true,
+      "request_body_hex": "dd0284002200000082a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "response_frame_hex": "abcd0800c86e10e62f930d40decadcba",
+      "result": 1,
+      "rf_boundary_calls": [],
+      "execution": {
+        "r0": 536886712,
+        "r1": 3859836616,
+        "instructions": 191,
+        "hardware_hooks": 4
+      },
+      "parser_execution": {
+        "r0": 144,
+        "r1": 65535,
+        "instructions": 13813,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "explicit RF permission/state boundary",
+          "pc": "0x08005574",
+          "args": [
+            1,
+            536872132,
+            733,
+            0
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886712,
+            4,
+            64,
+            536886744
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886744,
+            8,
+            64,
+            536886744
+          ]
+        },
+        {
+          "function": "USART1_raw_tx_capture",
+          "pc": "0x0801a890",
+          "args": [
+            536886712,
+            4,
+            536886712,
+            536886744
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-send",
+      "transport": 1,
+      "synthetic_gate_rejected": false,
+      "request_body_hex": "dd0284002200000082a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "response_frame_hex": "abcd0800c86e10e62e930d40decadcba",
+      "result": 0,
+      "rf_boundary_calls": [
+        {
+          "data_hex": "82a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f",
+          "length": 34,
+          "mode": 1
+        }
+      ],
+      "execution": {
+        "r0": 129,
+        "r1": 3859836616,
+        "instructions": 214,
+        "hardware_hooks": 3
+      },
+      "parser_execution": {
+        "r0": 144,
+        "r1": 65535,
+        "instructions": 14457,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "explicit RF permission/state boundary",
+          "pc": "0x08005574",
+          "args": [
+            1,
+            536872132,
+            733,
+            1
+          ]
+        },
+        {
+          "function": "RF packet capture without transmitting",
+          "pc": "0x0800542c",
+          "args": [
+            536872140,
+            34,
+            1,
+            1
+          ]
+        },
+        {
+          "function": "USB_endpoint_81_capture",
+          "pc": "0x0801d7f8",
+          "args": [
+            129,
+            536879200,
+            16,
+            1074631470
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-send",
+      "transport": 1,
+      "synthetic_gate_rejected": true,
+      "request_body_hex": "dd0284002200000082a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "response_frame_hex": "abcd0800c86e10e62f930d40decadcba",
+      "result": 1,
+      "rf_boundary_calls": [],
+      "execution": {
+        "r0": 129,
+        "r1": 3859836616,
+        "instructions": 206,
+        "hardware_hooks": 2
+      },
+      "parser_execution": {
+        "r0": 144,
+        "r1": 65535,
+        "instructions": 14457,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "explicit RF permission/state boundary",
+          "pc": "0x08005574",
+          "args": [
+            1,
+            536872132,
+            733,
+            1
+          ]
+        },
+        {
+          "function": "USB_endpoint_81_capture",
+          "pc": "0x0801d7f8",
+          "args": [
+            129,
+            536879200,
+            16,
+            1074631471
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-send",
+      "transport": 2,
+      "synthetic_gate_rejected": false,
+      "request_body_hex": "dd0284002200000082a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "response_frame_hex": "abcd0800de02040000020000bad4dcba",
+      "result": 0,
+      "rf_boundary_calls": [
+        {
+          "data_hex": "82a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f",
+          "length": 34,
+          "mode": 1
+        }
+      ],
+      "execution": {
+        "r0": 536886712,
+        "r1": 262878,
+        "instructions": 701,
+        "hardware_hooks": 6
+      },
+      "parser_execution": {
+        "r0": 144,
+        "r1": 65535,
+        "instructions": 12414,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "explicit RF permission/state boundary",
+          "pc": "0x08005574",
+          "args": [
+            1,
+            536872132,
+            733,
+            2
+          ]
+        },
+        {
+          "function": "RF packet capture without transmitting",
+          "pc": "0x0800542c",
+          "args": [
+            536872140,
+            34,
+            1,
+            2
+          ]
+        },
+        {
+          "function": "wall-clock delay boundary",
+          "pc": "0x0801d000",
+          "args": [
+            30,
+            10,
+            536886744,
+            2
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886712,
+            4,
+            11077,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886744,
+            8,
+            11077,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886712,
+            4,
+            11077,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-send",
+      "transport": 2,
+      "synthetic_gate_rejected": true,
+      "request_body_hex": "dd0284002200000082a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "response_frame_hex": "abcd0800de0204000102000001c8dcba",
+      "result": 1,
+      "rf_boundary_calls": [],
+      "execution": {
+        "r0": 536886712,
+        "r1": 262878,
+        "instructions": 695,
+        "hardware_hooks": 5
+      },
+      "parser_execution": {
+        "r0": 144,
+        "r1": 65535,
+        "instructions": 12414,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": [
+        {
+          "function": "explicit RF permission/state boundary",
+          "pc": "0x08005574",
+          "args": [
+            1,
+            536872132,
+            733,
+            2
+          ]
+        },
+        {
+          "function": "wall-clock delay boundary",
+          "pc": "0x0801d000",
+          "args": [
+            30,
+            10,
+            536886744,
+            2
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886712,
+            4,
+            14334,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886744,
+            8,
+            14334,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886712,
+            4,
+            14334,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "actual-preliminary-TX-gate",
+      "state_200000b3": 0,
+      "result": "rejected",
+      "execution": {
+        "r0": 4294967295,
+        "r1": 0,
+        "instructions": 11,
+        "hardware_hooks": 0
+      }
+    },
+    {
+      "kind": "actual-preliminary-TX-gate",
+      "state_200000b3": 6,
+      "result": "rejected",
+      "execution": {
+        "r0": 4294967295,
+        "r1": 0,
+        "instructions": 13,
+        "hardware_hooks": 0
+      }
+    },
+    {
+      "kind": "aprs-receive-FCS-consumer",
+      "input_packet_hex": "82a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974f",
+      "corrupted_FCS": false,
+      "ready": true,
+      "FCS_removed": true,
+      "reported_length_without_FCS": 32,
+      "response_frame_hex": "abcd8800e10284002000000082a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000080000009f420008000000000000000000000000000000006f19dcba",
+      "consumer_execution": {
+        "r0": 536871700,
+        "r1": 0,
+        "instructions": 2557,
+        "hardware_hooks": 0
+      },
+      "emitter_execution": {
+        "r0": 536886608,
+        "r1": 4,
+        "instructions": 10063,
+        "hardware_hooks": 3
+      },
+      "explicit_hooks": [
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            59024,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886640,
+            136,
+            59024,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            59024,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-receive-FCS-consumer",
+      "input_packet_hex": "82a0a4a64040e09c60868298986103f03a4e30544553542020203a48656c6c6f974e",
+      "corrupted_FCS": true,
+      "ready": false,
+      "FCS_removed": true,
+      "reported_length_without_FCS": 32,
+      "response_frame_hex": "",
+      "consumer_execution": {
+        "r0": 536871700,
+        "r1": 0,
+        "instructions": 2555,
+        "hardware_hooks": 0
+      },
+      "emitter_execution": null,
+      "explicit_hooks": []
+    },
+    {
+      "kind": "aprs-notification-gate-and-length",
+      "enabled_200023fc": 0,
+      "link_state_20000162": 3,
+      "input_length": 31,
+      "emitted": false,
+      "response_frame_hex": "",
+      "execution": {
+        "r0": 31,
+        "r1": 553648128,
+        "instructions": 9,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": []
+    },
+    {
+      "kind": "aprs-notification-gate-and-length",
+      "enabled_200023fc": 1,
+      "link_state_20000162": 2,
+      "input_length": 31,
+      "emitted": false,
+      "response_frame_hex": "",
+      "execution": {
+        "r0": 31,
+        "r1": 553648128,
+        "instructions": 13,
+        "hardware_hooks": 0
+      },
+      "explicit_hooks": []
+    },
+    {
+      "kind": "aprs-notification-gate-and-length",
+      "enabled_200023fc": 1,
+      "link_state_20000162": 3,
+      "input_length": 0,
+      "emitted": true,
+      "response_frame_hex": "abcd8800e10284000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008885dcba",
+      "execution": {
+        "r0": 536886608,
+        "r1": 4,
+        "instructions": 10005,
+        "hardware_hooks": 3
+      },
+      "explicit_hooks": [
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            31351,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886640,
+            136,
+            31351,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            31351,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-notification-gate-and-length",
+      "enabled_200023fc": 1,
+      "link_state_20000162": 3,
+      "input_length": 128,
+      "emitted": true,
+      "response_frame_hex": "abcd8800e102840080000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7fdca7dcba",
+      "execution": {
+        "r0": 536886608,
+        "r1": 4,
+        "instructions": 10167,
+        "hardware_hooks": 3
+      },
+      "explicit_hooks": [
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            22563,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886640,
+            136,
+            22563,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            22563,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "aprs-notification-gate-and-length",
+      "enabled_200023fc": 1,
+      "link_state_20000162": 3,
+      "input_length": 200,
+      "emitted": true,
+      "response_frame_hex": "abcd8800e102840080000000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7fdca7dcba",
+      "execution": {
+        "r0": 536886608,
+        "r1": 4,
+        "instructions": 10168,
+        "hardware_hooks": 3
+      },
+      "explicit_hooks": [
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            22563,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886640,
+            136,
+            22563,
+            0
+          ]
+        },
+        {
+          "function": "auxiliary_UART_raw_tx_capture",
+          "pc": "0x0801aad0",
+          "args": [
+            536886608,
+            4,
+            22563,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

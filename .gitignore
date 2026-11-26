@@ -11,3 +11,5 @@ coverage/
 *.backup.json
 !tests/fixtures/*.json
 .local/
+__pycache__/
+*.pyc

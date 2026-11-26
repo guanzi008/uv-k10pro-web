@@ -64,6 +64,7 @@ export function parseMessage(value) {
     const count = view(payload).getUint16(4, true);
     if (count > payload.length - 12) throw new ProtocolError('Write count exceeds supplied bytes', 'BAD_LENGTH');
     if (declaredLength === 12 && payload.length === 140) lengthConvention = 'cps-0.56-fixed-128';
+    else if (declaredLength === 140 && payload.length === 140) lengthConvention = 'android-k8-fixed-128';
     else if (!(declaredLength === payload.length && payload.length === 12 + count))
       throw new ProtocolError('Unknown write length convention', 'BAD_LENGTH');
   } else if (command === COMMAND.HELLO && declaredLength === 4 && payload.length === 24) {
@@ -76,7 +77,7 @@ export function parseMessage(value) {
 
 function frameOptions({ direction = 'request', wireMode = 'plain', responseChecksum = 'placeholder', maxFrameLength = 383 } = {}) {
   if (!['request', 'response'].includes(direction) || !['plain', 'xor'].includes(wireMode) ||
-      !['placeholder', 'crc16-x25'].includes(responseChecksum) || !Number.isInteger(maxFrameLength) || maxFrameLength < 12 || maxFrameLength > 65543)
+      !['placeholder', 'crc16-x25', 'crc16-x25-or-placeholder'].includes(responseChecksum) || !Number.isInteger(maxFrameLength) || maxFrameLength < 12 || maxFrameLength > 65543)
     throw new ProtocolError('Invalid frame profile', 'INVALID_ARGUMENT');
   return { direction, wireMode, responseChecksum, maxFrameLength };
 }
@@ -101,7 +102,11 @@ export function decodeFrame(value, options = {}) {
     throw new ProtocolError('Invalid outer length', 'BAD_LENGTH');
   const data = profile.wireMode === 'xor' ? xorPayload(frame.subarray(4, -2)) : frame.slice(4, -2);
   const body = data.subarray(0, -2), checksum = view(data).getUint16(data.length - 2, true);
-  const placeholder = profile.direction === 'response' && profile.responseChecksum === 'placeholder';
+  // K8's Android decoder accepts FFFF without checking the CRC, otherwise it
+  // verifies X25. A received FFFF remains unverified even if X25 coincides with it.
+  // This compatibility exception never applies to outgoing radio requests.
+  const placeholder = profile.direction === 'response' && (profile.responseChecksum === 'placeholder' ||
+    (profile.responseChecksum === 'crc16-x25-or-placeholder' && checksum === 0xffff));
   if (checksum !== (placeholder ? 0xffff : crc16X25(body)))
     throw new ProtocolError(placeholder ? 'Expected stock FFFF checksum placeholder' : 'CRC16/X25 mismatch', 'BAD_CHECKSUM');
   return { ...parseMessage(body), checksum, checksumStatus: placeholder ? 'placeholder-unverified' : 'crc16-x25-verified',
@@ -141,11 +146,17 @@ export class FrameStreamParser {
   }
 }
 
-export function buildHello(session, utcSeconds = Math.floor(Date.now() / 1000)) {
+function androidLengths(lengthConvention) {
+  if (!['cps-0.56', 'android-k8'].includes(lengthConvention))
+    throw new ProtocolError('Unknown request length convention', 'INVALID_ARGUMENT');
+  return lengthConvention === 'android-k8';
+}
+
+export function buildHello(session, utcSeconds = Math.floor(Date.now() / 1000), { lengthConvention = 'cps-0.56' } = {}) {
   uint(session, 32, 'session'); uint(utcSeconds, 32, 'UTC seconds');
   const payload = new Uint8Array(24), dv = view(payload);
   dv.setUint32(0, session, true); dv.setUint32(4, utcSeconds, true);
-  return encodeMessage(COMMAND.HELLO, payload, 4);
+  return encodeMessage(COMMAND.HELLO, payload, androidLengths(lengthConvention) ? payload.length : 4);
 }
 export function parseHelloReply(message) {
   if (message.command !== COMMAND.HELLO_REPLY || message.payload.length !== 52)
@@ -161,12 +172,14 @@ export function buildRead(address, count, session) {
   dv.setUint32(0, address, true); dv.setUint16(4, count, true); dv.setUint32(8, session, true);
   return encodeMessage(COMMAND.READ, payload);
 }
-export function buildWrite(address, value, session, { flag = 0 } = {}) {
+export function buildWrite(address, value, session, { flag = 0, lengthConvention = 'cps-0.56' } = {}) {
   const data = bytes(value); interval(address, data.length, CHUNK_SIZE); uint(session, 32, 'session'); uint(flag, 8, 'flag');
   const payload = new Uint8Array(140), dv = view(payload);
   dv.setUint32(0, address, true); dv.setUint16(4, data.length, true); payload[6] = flag;
   dv.setUint32(8, session, true); payload.set(data, 12);
-  return encodeMessage(COMMAND.WRITE, payload, 12);
+  // Both official clients pad to 128 data bytes. Android declares the entire
+  // 140-byte payload; CPS 0.56 declares only the 12-byte write header.
+  return encodeMessage(COMMAND.WRITE, payload, androidLengths(lengthConvention) ? payload.length : 12);
 }
 export function parseReadReply(message, address, count) {
   if (message.command !== COMMAND.READ_REPLY || message.payload.length !== count + 8)

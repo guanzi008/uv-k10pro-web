@@ -167,9 +167,49 @@ select('aprs_latitude_hemisphere', ['N', 'S'], '060002D1');
 select('aprs_longitude_hemisphere', ['E', 'W'], '060002D2');
 enrich('aprs_auto_reply_interval', { min: 0, max: 60, raw: false, evidence: 'CPS 060002D9 returns 0..60 as strings' });
 
+// Exact-model options whose earlier UI exposed only opaque storage indices.
+select('end_talk', ['关闭', '嘀嘟提示音', '蛙鸣提示音'], 'K8.json build 68 end_talk_option',
+  { help: '第三项由 68 版 K8 配置声明；64 版只声明前两项。原值仍无损保留。' });
+for (const side of ['a', 'b']) {
+  const labels = [...Array.from({ length: 999 }, (_, i) => `信道 ${i + 1}`),
+    ...Array.from({ length: 7 }, (_, i) => `${side.toUpperCase()} / VFO 频段 ${i + 1}`)];
+  select(`display_${side}_raw`, labels, side === 'a' ? '060002EB' : '060002EC',
+    { label: `${side.toUpperCase()} 区开机显示`, help: '0..998 为普通信道，999..1005 为本侧 7 个 VFO；只修改当前选择，不清空历史选择。' });
+}
+for (const id of ['dtmf_separator', 'dtmf_group_code'])
+  enrich(id, { pattern: '^[A-D*#]?$', help: '一个 A–D、* 或 # 字符；留空写入空字段。' });
+for (const id of ['five_tone_separator', 'five_tone_group_code'])
+  enrich(id, { pattern: '^[A-E]?$', help: '一个 A–E 字符；留空写入空字段。' });
+for (const prefix of ['dtmf', 'five_tone']) {
+  enrich(`${prefix}_reset_raw`, { label: '自动复位 / 秒', raw: false, unit: 's' });
+  for (const [suffix, label] of [['precarrier_raw', '预载波'], ['first_code_raw', '首码持续'], ['single_code_raw', '单码持续'], ['gap_raw', '码间隔']])
+    enrich(`${prefix}_${suffix}`, { label: `${label} / 毫秒`, raw: false, unit: 'ms',
+      help: 'K8 配置标注毫秒，CPS 直接保存选中数字，未使用其他型号的比例换算。' });
+}
+enrich('dtmf_star_hash_raw', { label: '* / # 持续 / 毫秒', raw: false, unit: 'ms' });
+
+// Only these two additional fields have an exact editable converter and stock
+// consumer contract. Other state/board fields are inspectable and immutable.
+field('air_programming_repeats', '空口写频发送次数', 'advanced', 0x19001, 'u8', {
+  min: 1, max: 4, evidence: 'CPS 060003D6/GetHideParam + stock loader 0x0800F2A2',
+  help: '设置电台自身空口写频功能的重复次数；保存此项不会开始发射。' });
+field('remote_killed_state', '遥毙状态原值', 'advanced', 0x19002, 'u8', {
+  writable: false, raw: true, evidence: 'CPS kill_flag + stock loader 0x0800F2BA',
+  help: '状态字节仅显示和备份，不以普通配置表单修改设备的遥毙状态。' });
+field('encrypted_call_flag', '加密通话标志原值', 'advanced', 0x19003, 'u8', {
+  writable: false, raw: true, evidence: 'CPS encrypt_flag + stock loader 0x0800F2CC',
+  help: '已确认存储字段；实际加密语义及互通行为未确认，仅显示和备份。' });
+field('channel_reconfiguration', '信道重配置策略', 'advanced', 0x1900a, 'u8', {
+  max: 2, options: opts(['正常', '禁止重配置', '禁止重配置及发射']),
+  evidence: 'CPS GetChannelReconfigFlags 060002CE + stock loader 0x0800F306',
+  help: '值 2 同时限制发射；该字段独立于信道功率和频段选择。' });
+field('ultra_high_power_flag', '功率扩展状态原值', 'advanced', 0x1b000, 'u8', {
+  writable: false, raw: true, evidence: 'CPS GetUltraHighPowerFlag 060003EB + stock loader 0x0800F34E',
+  help: '官方 PC 读取但隐藏此控件，未接入其正常写入流程；只保存原值。' });
+
 export const SETTINGS_FIELDS = Object.freeze(fields);
 export const SETTINGS_BY_ID = Object.freeze(Object.fromEntries(fields.map(f => [f.id, f])));
-export const SETTINGS_GROUPS = Object.freeze({ general: '常规设置', keys: '按键', display: '显示与名称', radio: '广播接收', dtmf: 'DTMF', five_tone: '5TONE', aprs: 'APRS' });
+export const SETTINGS_GROUPS = Object.freeze({ general: '常规设置', keys: '按键', display: '显示与名称', radio: '广播接收', dtmf: 'DTMF', five_tone: '5TONE', aprs: 'APRS', advanced: '高级设置与状态' });
 export const STRUCTURED_TABLES = Object.freeze({
   dtmf_contacts: { offset: 0x1a000, count: 16, size: 24, name_bytes: 16, code_bytes: 8, code_pattern: '^[0-9]*$' },
   five_tone_contacts: { offset: 0x1a800, count: 16, size: 24, name_bytes: 16, code_bytes: 8, code_pattern: '^[0-9]*$' },

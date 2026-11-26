@@ -14,12 +14,17 @@ import { BAND_PLAN_COVERAGE, readVfoBandDefinition, readBandGroups, resolveActiv
 import { exportProject, importProject, importNor, exportNor, exportChannelsCsv, importChannelsCsv,
   exportCpsCsv, exportRadioCsv, importRadioCsv, decodeCsvFile, overlayConfiguration, MAX_FILE_BYTES } from './core/import-export.mjs';
 import { saveRecovery, latestRecovery } from './core/recovery.mjs';
+import { copyChannels, pasteChannels, moveChannels, sortChannels, batchPatchChannels, generateChannels } from './core/channel-tools.mjs';
+import { importCpsDat, exportCpsDat, inspectCpsDatExport } from './core/cps-project.mjs';
+import { prepareAprsMessage } from './core/aprs-frame.mjs';
 import { createDemoWorkspace } from './demo.mjs';
-import { ProgrammingSession, WebSerialTransport, WebUsbTransport, WebBluetoothTransport } from './protocol/index.mjs';
+import { ProgrammingSession, WebSerialTransport, WebUsbTransport, WebBluetoothTransport,
+  discoverBleCharacteristics, normalizeBleProfile, parseBleProfile, serializeBleProfile, DEFAULT_K8_BLE_PROFILE, normalizePassword } from './protocol/index.mjs';
 
 const state = { workspace: null, session: null, sessionId: null, controller: null, transport: '',
   connectionState: 'disconnected', logs: [], plan: null, busy: false, view: 'channels', edit: null,
-  connectionError: '', progress: null, recoveryProject: null };
+  connectionError: '', progress: null, recoveryProject: null, clipboard: null, bleDevice: null,
+  aprsPreview: null, liveEvents: [], lastLocationSync: null };
 const ui = mountWorkbench({ onAction: action });
 const labels = { aprs_ptt: 'APRS PTT', aprs_tx_channel: 'APRS 发射信道索引', offset_direction: '频差方向',
   bandwidth: '带宽', step_index: '步进', scrambler: '扰频索引', power: '功率', busy_lockout: '繁忙禁发',
@@ -38,8 +43,9 @@ const features = [
   { name: '正常密码认证', supported: true, detail: '输入设备现有密码；6 组官方 PC 原生 MAC 与固件 ARM AES 重放验证，无自动重试' },
   { name: '128 × 64 开机图', supported: true, detail: '标准页格式与有效头已核对，保留头部预留字节' },
   { name: '自定义频段 / 频段组', supported: true, detail: '按固件 144 B 定义及 272 B 组槽编辑；自动属性依据本次已读计划' },
-  { name: '密码修改 / NOAA SAME', supported: false, detail: '保护凭据写入未开放；SAME 未进入已检查的 K8 活跃编程流程' },
-  { name: '音频功放 4898', supported: false, detail: '来自机主补充的芯片标识；厂商/完整型号/引脚待核，无信道存储区' },
+  { name: '正常密码修改', supported: true, detail: '开机数字密码与编程密码独立提交；旧密码认证、回读和新密码验证' },
+  { name: 'APRS 实时收发 / 位置同步', supported: true, detail: 'K8 AX.25 消息预览与单次发送、被动接收事件、一次性位置和 RTC 同步' },
+  { name: 'NOAA SAME', supported: false, detail: '未进入已检查的 K8 活跃编程流程，不沿用其他机型的布局' },
 ];
 
 function log(message, level = 'info') {
@@ -81,17 +87,58 @@ function connectionModel() {
     reason, progress: state.progress };
 }
 
+function liveModel() {
+  const session = state.session, ws = state.workspace, defaults = {};
+  const mappings = { source: 'aprs_own_callsign', sourceSsid: 'aprs_own_ssid', destination: 'aprs_target_callsign',
+    destinationSsid: 'aprs_target_ssid', path: 'aprs_path' };
+  for (const [key, id] of Object.entries(mappings)) {
+    const definition = SETTINGS_FIELDS.find(field => field.id === id);
+    if (definition && ws?.has(definition.offset, definition.length)) defaults[key] = readSetting(ws.data, id);
+  }
+  return { canOperate: Boolean(session?.writeEnabled), canLocate: Boolean(navigator.geolocation && globalThis.isSecureContext),
+    preview: state.aprsPreview, events: state.liveEvents.slice(), defaults,
+    previewForCurrentSession: Boolean(state.aprsPreview && state.aprsPreview.sessionId === state.sessionId && state.sessionId),
+    lastLocationSync: state.lastLocationSync,
+    reason: session?.writeEnabled ? '已完成目标型号和访问状态核对。实时指令独立于配置差分提交。' : '连接已确认型号的 UV-K10 Pro 并完成正常认证后，才能发送或同步位置。' };
+}
+
+function aprsInput(values) {
+  const ssid = (value, label) => {
+    if ((typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === '') throw new Error(`${label} 必须为 0–15 的整数。`);
+    return integer(Number(value), 0, 15, label);
+  };
+  return { destination: String(values.destination ?? ''), destinationSsid: ssid(values.destinationSsid, '目标 SSID'),
+    source: String(values.source ?? ''), sourceSsid: ssid(values.sourceSsid, '本机 SSID'),
+    addressee: String(values.addressee ?? ''), path: String(values.path ?? ''), text: String(values.text ?? '') };
+}
+function addLiveEvent(event) {
+  state.liveEvents.unshift({ id: crypto.randomUUID(), time: new Date().toISOString(), ...event });
+  if (state.liveEvents.length > 200) state.liveEvents.length = 200;
+  ui.render({ live: liveModel() });
+}
+function receiveLiveEvent(event) {
+  const decoded = event.decoded;
+  addLiveEvent({ direction: 'receive', source: decoded.source?.label ?? '', destination: decoded.destination?.label ?? '',
+    path: decoded.path.map(item => item.label).join(','), information: decoded.information,
+    message: decoded.message, packetHex: hex(event.packet), length: event.length, decoded: decoded.valid,
+    possiblyTruncated: event.possiblyTruncated, fcsIncluded: false,
+    checksumStatus: event.checksumStatus, reservedHex: hex(event.reserved) });
+}
+
 function render() {
   const ws = state.workspace;
   const model = { workspace: ws ? { id: ws.id, name: ws.name, mode: ws.mode, bytes: ws.loadedBytes,
       dirtyBytes: ws.dirtyBytes(), modifiedCount: ws.differences().length, complete: ws.complete,
+      canUndo: ws.undoStack.length > 0 && !ws.uncertain, canRedo: ws.redoStack.length > 0 && !ws.uncertain,
+      clipboardCount: state.clipboard?.records.length ?? 0,
       description: ws.mode === 'demo' ? '合成离线示例；不能作为工厂镜像或直接写入设备。' : ws.complete ? '完整 4 MiB 覆盖；未授予额外设备权限。' : '仅明确覆盖已读区；未读地址不会用空白数据冒充。' }
     : { id: 'empty', name: '尚未载入', mode: 'empty', bytes: 0, dirtyBytes: 0, modifiedCount: 0, complete: false },
-    connection: connectionModel(), channels: [], vfos: [], contacts: [], messages: [],
+    connection: connectionModel(), live: liveModel(), channels: [], vfos: [], contacts: [], messages: [],
     radio: { si4732: [], bk1080: [] }, settingsGroups: [], scans: [], changes: [], logs: state.logs.slice(),
     capabilities: { serial: Boolean(navigator.serial && globalThis.isSecureContext),
       usb: Boolean(navigator.usb && globalThis.isSecureContext), ble: Boolean(navigator.bluetooth && globalThis.isSecureContext),
-      bleReason: 'K10 Pro 的 GATT UUID 尚未由实机证实；需要填写确切服务与特征，不采用其他型号默认值。', features } };
+      defaultBleProfile: DEFAULT_K8_BLE_PROFILE,
+      bleReason: '已提供从 K8 App 还原的 K10 Pro 蓝牙预设。连接时会检查实际特征能力；浏览器与实机的长写入仍待验证。', features } };
   if (ws) {
     for (let index = 0; index < 999; index++) {
       if (!ws.has(index * 64, 64) || !ws.has(0x11000 + index, 1)) continue;
@@ -114,7 +161,7 @@ function render() {
       for (const s of decodeRadioBank(ws.data, chip, band).stations)
         model.radio[chip].push({ index: s.index, number: s.index === 0 ? 'VFO' : s.index, band: band.toUpperCase(),
           name: s.index === 0 ? 'VFO' : `存台 ${s.index}`, frequency: s.empty ? '' : `${mhz(s.frequency_hz)} MHz`,
-          mode: s.mode, bfo: band === 'fm' ? '—' : s.bfo_raw, active: !s.empty,
+          mode: s.mode, bfo: band === 'fm' ? '—' : `${s.bfo_hz} Hz`, active: !s.empty,
           modified: dirty(b.offset + 8 + s.index * 8, 8), rangeWarning: !s.empty && !s.in_cps_range });
     }
     for (const [id, title] of Object.entries(SETTINGS_GROUPS)) {
@@ -123,6 +170,14 @@ function render() {
       model.settingsGroups.push({ id, title, description: '原始选项按存储值保留；只有实际修改的字段会写入。',
         fields: definitions.map(definition => settingField(ws, definition)) });
     }
+    model.settingsGroups.push({ id: 'credentials', title: '设备密码', description: '开机数字密码与编程密码分别处理。密码变更独立提交，完成后需重新连接读取；不会随导入文件自动修改。',
+      fields: [
+        { key: 'startup_password', label: '开机数字密码', type: 'action', action: 'edit-startup-password', value: '修改开机密码',
+          disabled: !connectionModel().writable || state.session?.identity?.startLockFlag !== 0,
+          help: state.session?.identity?.startLockFlag ? '设备报告开机密码区已锁定，当前正常写入流程不修改该区。' : '需要本次连接的读取基线；可设置数字密码或清除。' },
+        { key: 'programming_password', label: '编程密码', type: 'action', action: 'edit-programming-password', value: '修改编程密码',
+          disabled: !connectionModel().writable, help: '已有密码时必须再次输入当前密码；没有密码时可以正常设置。' },
+      ] });
     if (ws.has(0x45000, 1032)) {
       const bitmap = readStartupBitmap(ws.data);
       model.settingsGroups.push({ id: 'startup-bitmap', title: '开机图像',
@@ -268,12 +323,14 @@ function openRadio(chip, row) {
   const band = String(row.band ?? 'fm').toLowerCase();
   const b = RADIO_BANKS[band]; ws.require(b.offset, b.length);
   const s = decodeRadioBank(ws.data, chip, band).stations[row.index];
+  const bfoEditable = Math.abs(s.bfo_hz) <= 16380 && s.bfo_hz % 10 === 0;
   const fields = [field('frequencyMHz', `${band.toUpperCase()} 频率 / MHz`, s.empty ? '' : mhz(s.frequency_hz), {
     help: `当前 CPS 可编辑范围 ${mhz(b.min_hz)}–${mhz(b.max_hz)} MHz；留空清除此存台，VFO 不可清空。` })];
   if (band !== 'fm') fields.push(choice('demodulation', '接收模式', s.demodulation, [
     { value: 1, label: 'AM' }, { value: 2, label: 'LSB' }, { value: 3, label: 'USB' }]),
-    field('bfo_raw', 'BFO 原始 16 位数值', s.bfo_raw, { type: 'number', min: 0, max: 65535,
-      help: 'CPS 的有符号显示与 UInt16 存储不一致；此处不推定 Hz 或带符号意义。' }));
+    field('bfo_hz', 'BFO / Hz', s.bfo_hz, { type: 'number', min: bfoEditable ? -16380 : undefined,
+      max: bfoEditable ? 16380 : undefined, step: bfoEditable ? 10 : 1,
+      help: `以 10 Hz 为步进；固件当前生效值为 ${s.bfo_effective_hz} Hz。原始值即使超范围，未修改也会保留。` }));
   showEditor(chip, { ...row, band, index: row.index }, fields);
 }
 function openScan(index) {
@@ -287,6 +344,55 @@ function openScan(index) {
 function changedValues(values, original) {
   return Object.fromEntries(Object.entries(values).filter(([key, value]) => Object.hasOwn(original, key) && String(value) !== String(original[key] ?? '')));
 }
+function openChannelTool(operation, indexes = []) {
+  const ws = needWorkspace(), first = indexes[0] ?? 0, fields = [];
+  const reference = () => ({ key: 'updateScanLists', label: '同步扫描列表中的成员和优先信道编号', type: 'checkbox', value: true,
+    help: '扫描列表会跟随移动后的记录；当前选中信道等其他槽位编号保持原值。' });
+  const titles = { paste: '粘贴信道', move: '移动信道', sort: '将排序写入信道槽位', batch: '批量修改参数', generate: '按步进生成信道' };
+  if (operation === 'paste') {
+    if (!state.clipboard?.records.length) throw new Error('请先复制或剪切信道。');
+    fields.push(field('start', '粘贴到第几个信道', first + 1, { type: 'number', min: 1, max: 1000 - state.clipboard.records.length,
+      help: `依次覆盖 ${state.clipboard.records.length} 个槽位，保留完整记录与属性；可用“撤销”恢复本地修改。` }));
+  } else if (operation === 'move') fields.push(field('before', '插入到此信道之前', first + 1, { type: 'number', min: 1, max: 1000,
+    help: '填 1000 移到末尾；中间记录整体移位，不丢弃原有信道。' }), reference());
+  else if (operation === 'sort') fields.push(choice('sortKey', '按此字段排序', 'rx', [{ value: 'rx', label: '接收频率' }, { value: 'tx', label: '发射频率（倒频前）' }, { value: 'name', label: '名称' }]),
+    { key: 'descending', label: '降序', type: 'checkbox', value: false }, reference());
+  else if (operation === 'batch') {
+    for (const [key, spec] of Object.entries(CHANNEL_FIELDS)) if (key !== 'offset_direction')
+      fields.push(choice(key, labels[key], '', [{ value: '', label: '不修改' }, ...spec.allowed.map(value => ({ value, label: enumLabels[key]?.[value] ?? String(value) }))]));
+    for (const side of ['rx', 'tx']) fields.push(choice(`${side}_tone_kind`, `${side.toUpperCase()} 亚音`, '', [{ value: '', label: '不修改' }, ...CHANNEL_ENUMS.tone.map((label, value) => ({ value, label }))]),
+      field(`${side}_tone_value`, `${side.toUpperCase()} 亚音值`, '', { help: 'CTCSS 填 Hz；DCS 填八进制；关闭填 0。' }));
+  } else if (operation === 'generate') {
+    const source = indexes.find(index => readChannel(ws.data, index).deleted === false) ?? Array.from({ length: 999 }, (_, i) => i).find(index => ws.has(index * 64, 64) && ws.has(0x11000 + index, 1) && ws.data[0x11000 + index] !== 255);
+    if (source === undefined) throw new Error('请先建立一个已启用信道作为模板。');
+    const channel = readChannel(ws.data, source);
+    fields.push(field('template', '模板信道编号', source + 1, { type: 'number', min: 1, max: 999 }),
+      field('start', '起始目标信道编号', first + 1, { type: 'number', min: 1, max: 999 }), field('count', '生成数量', 1, { type: 'number', min: 1, max: 999 }),
+      field('rxStartMHz', '起始接收频率 / MHz', mhz(channel.rx_frequency_hz)), field('stepMHz', '频率步进 / MHz', '0.012500'),
+      field('txOffsetMHz', '发射相对接收频差 / MHz', '0.000000', { help: '可填负数，例如 -0.600000。' }),
+      field('namePrefix', '名称前缀（可留空）', '', { help: '填写后自动追加序号；完整名称最多 10 个 GB2312 字节。其余参数从模板逐字节复制。' }));
+  } else throw new Error('未知信道整理操作。');
+  showEditor('channel-tool', { operation, indexes: [...indexes], title: titles[operation], index: first }, fields);
+}
+function applyChannelTool(ws, record, values) {
+  const ref = { updateScanLists: values.updateScanLists === true };
+  if (record.operation === 'paste') return pasteChannels(ws, state.clipboard, num(values.start, 1, 999, '目标信道') - 1);
+  if (record.operation === 'move') return moveChannels(ws, record.indexes, num(values.before, 1, 1000, '插入位置') - 1, ref);
+  if (record.operation === 'sort') return sortChannels(ws, record.indexes, { key: values.sortKey, descending: values.descending === true, ...ref });
+  if (record.operation === 'batch') {
+    const patch = {};
+    for (const key of Object.keys(CHANNEL_FIELDS)) if (values[key] !== undefined && values[key] !== '') patch[key] = num(values[key], 0, 255, labels[key]);
+    for (const side of ['rx', 'tx']) if (values[`${side}_tone_kind`] !== '') patch[`${side}_tone`] = parseEditorTone(values[`${side}_tone_kind`], values[`${side}_tone_value`]);
+    return batchPatchChannels(ws, record.indexes, patch);
+  }
+  if (record.operation === 'generate') {
+    const offset = values.txOffsetMHz.trim(), negative = offset.startsWith('-');
+    return generateChannels(ws, { startIndex: num(values.start, 1, 999, '起始信道') - 1, count: num(values.count, 1, 999, '生成数量'),
+      templateIndex: num(values.template, 1, 999, '模板信道') - 1, rxStartHz: parseMHz(values.rxStartMHz), stepHz: parseMHz(values.stepMHz),
+      txOffsetHz: parseMHz(negative ? offset.slice(1) : offset.replace(/^\+/, '')) * (negative ? -1 : 1), namePrefix: values.namePrefix });
+  }
+  throw new Error('未知信道整理操作。');
+}
 function applyEditor({ kind, record, values }) {
   const ws = needWorkspace(), edit = state.edit;
   if (!edit || edit.kind !== kind || edit.workspaceId !== ws.id || edit.revision !== ws.revision)
@@ -294,7 +400,10 @@ function applyEditor({ kind, record, values }) {
   record = edit.record; // Only controller-owned indices can select memory.
   const changes = changedValues(values, edit.original);
   let next = ws.data;
-  if (kind === 'channel' || kind === 'vfo') {
+  if (kind === 'channel-tool') {
+    next = applyChannelTool(ws, record, values);
+    if (record.operation === 'paste' && state.clipboard?.cut) state.clipboard = null;
+  } else if (kind === 'channel' || kind === 'vfo') {
     const c = kind === 'vfo' ? readVfo(ws.data, record.band, record.side) : readChannel(ws.data, record.index);
     const patch = {};
     if (record.isNew) Object.assign(changes, values);
@@ -330,7 +439,7 @@ function applyEditor({ kind, record, values }) {
       patch.frequency_hz = values.frequencyMHz.trim() ? parseMHz(values.frequencyMHz) : 0;
     }
     if ('demodulation' in changes) patch.demodulation = num(values.demodulation, 1, 3, '广播模式');
-    if ('bfo_raw' in changes) patch.bfo_raw = num(values.bfo_raw, 0, 65535, 'BFO 原始值');
+    if ('bfo_hz' in changes) patch.bfo_hz = num(values.bfo_hz, -16380, 16380, 'BFO / Hz');
     next = patchRadioStation(ws.data, kind, record.band, record.index, patch);
   } else if (kind === 'scan') {
     const patch = {};
@@ -374,12 +483,95 @@ async function action(type, payload = {}) {
     if (state.busy && !['cancel', 'navigate', 'clear-log'].includes(type)) throw new Error('读写操作进行中，请先等待或取消。');
     switch (type) {
       case 'navigate': state.view = payload.view; return;
+      case 'preview-aprs': {
+        const input = aprsInput(payload.values), prepared = prepareAprsMessage(input);
+        state.aprsPreview = { ...prepared, input, id: crypto.randomUUID(), sessionId: state.sessionId };
+        ui.render({ live: liveModel() }); return;
+      }
+      case 'send-aprs': {
+        const session = needSession(), preview = state.aprsPreview;
+        if (!preview || payload.previewId !== preview.id || preview.sessionId !== state.sessionId || !session.writeEnabled)
+          throw new Error('请在本次已认证连接中重新生成 APRS 预览。');
+        const prepared = prepareAprsMessage(aprsInput(payload.values));
+        if (prepared.packetHex !== preview.packetHex) throw new Error('消息已变化，请重新预览后再发送。');
+        if (!prepared.normalizedText.trim()) throw new Error('规范化后的消息正文为空，请修改后重新预览。');
+        return await runBusy('发送一次 APRS 消息', async signal => {
+          state.aprsPreview = null;
+          const result = await session.sendAprs(prepared.packet, { signal });
+          addLiveEvent({ direction: 'send', source: `${prepared.source}-${prepared.sourceSsid}`, destination: `${prepared.destination}-${prepared.destinationSsid}`,
+            information: prepared.information, packetHex: prepared.packetHex, length: prepared.length,
+            accepted: result.accepted, result: result.result, rfDeliveryConfirmed: false, fcsIncluded: true });
+          log(result.accepted ? '设备已接受本次 APRS 发送请求；尚未确认无线送达。' : `设备拒绝本次 APRS 发送请求（结果 ${result.result}）；未重试。`, result.accepted ? 'success' : 'warning');
+        });
+      }
+      case 'locate-browser':
+        if (!navigator.geolocation) throw new Error('当前浏览器未提供位置 API，可以手工填写经纬度。');
+        return await runBusy('获取浏览器位置', signal => new Promise((resolve, reject) => {
+          let settled = false;
+          const finish = (value, error) => {
+            if (settled) return; settled = true; signal.removeEventListener('abort', cancel);
+            if (error) reject(error); else resolve(value);
+          };
+          const cancel = () => finish(null, new Error('已取消浏览器定位，后续位置结果不会应用。'));
+          signal.addEventListener('abort', cancel, { once: true });
+          if (signal.aborted) { cancel(); return; }
+          try {
+            navigator.geolocation.getCurrentPosition(position => finish({ latitude: position.coords.latitude,
+              longitude: position.coords.longitude, altitudeMeters: position.coords.altitude ?? 0,
+              accuracyMeters: position.coords.accuracy, altitudeUnavailable: position.coords.altitude == null }),
+            () => finish(null, new Error('未取得浏览器位置；请检查授权或手工填写坐标。')), { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+          } catch { finish(null, new Error('浏览器定位调用失败，可以手工填写坐标。')); }
+        }));
+      case 'sync-location': {
+        const session = needSession(), values = payload.values;
+        if (!session.writeEnabled) throw new Error('请先连接并完成正常认证。');
+        for (const key of ['latitude', 'longitude', 'altitudeMeters']) if (typeof values[key] !== 'string' || !values[key].trim() || !Number.isFinite(Number(values[key])))
+          throw new Error('纬度、经度和高度必须为明确的数值。');
+        return await runBusy('同步一次位置与时间', async signal => {
+          const result = await session.synchronizeLocation({ latitude: Number(values.latitude), longitude: Number(values.longitude),
+            altitudeMeters: Number(values.altitudeMeters), signal });
+          state.sessionId = crypto.randomUUID(); state.plan = null; state.aprsPreview = null;
+          state.lastLocationSync = new Date().toISOString();
+          log(`位置与 RTC 已同步一次，旧写入基线已失效。${result.authenticationRequired ? '请重新输入设备密码，再读取配置。' : '继续写入配置前请重新读取。'}`, 'success');
+        });
+      }
+      case 'clear-live-events': state.liveEvents = []; ui.render({ live: liveModel() }); return;
+      case 'export-live-events': download(filename('aprs.json'), JSON.stringify({ format: 'uv-k10pro-aprs-events', version: 1, events: state.liveEvents }, null, 2), 'application/json'); return;
       case 'clear-log': state.logs = []; ui.render({ logs: [] }); return;
+      case 'undo': needWorkspace().undo(); state.plan = null; render(); return;
+      case 'redo': needWorkspace().redo(); state.plan = null; render(); return;
+      case 'copy-channels':
+        state.clipboard = copyChannels(needWorkspace(), payload.indexes, { cut: payload.cut });
+        log(`已${payload.cut ? '剪切选中' : '复制'} ${state.clipboard.records.length} 个信道；${payload.cut ? '粘贴后才清空来源槽位。' : '原始记录与属性一并保留。'}`); render(); return;
+      case 'channel-tool': return openChannelTool(payload.operation, payload.indexes);
       case 'cancel': state.controller?.abort(); log('已请求取消；若协议会话中断，需要重新连接。', 'warning'); return;
       case 'demo':
         if (!await replaceAllowed()) return false;
         state.workspace = createDemoWorkspace(); state.plan = null; render();
         log('已载入完全合成的离线演示；未连接或读取设备。', 'info'); return;
+      case 'new-channels': {
+        if (!await replaceAllowed()) return false;
+        const data = new Uint8Array(PROFILE.capacity).fill(255); data.fill(0, 0, 999 * 64);
+        state.workspace = new MemoryWorkspace({ name: '新建信道表', data, mode: 'offline', coverage: [{ address: 0, length: 999 * 64 }, { address: 0x11000, length: 999 }],
+          provenance: { generated: 'empty channel table; no device settings or factory defaults inferred' } });
+        state.clipboard = null; state.plan = null;
+        log('已新建空信道表。仅包含信道及属性；编辑空槽时需选择频段，设备设置仍需导入或读取。'); render(); return;
+      }
+      case 'discover-ble':
+        if (state.session?.connected) throw new Error('请先断开编程连接，再检查蓝牙服务。');
+        return await runBusy('检查蓝牙服务', async () => {
+          const result = await discoverBleCharacteristics({ serviceUuid: payload.serviceUuid });
+          state.bleDevice = { device: result.device, serviceUuid: result.serviceUuid };
+          log(`蓝牙服务检查完成：${result.characteristics.length} 个特征。未发送写频指令，未同步 RTC。`);
+          return { serviceUuid: result.serviceUuid, characteristics: result.characteristics };
+        });
+      case 'import-ble-profile': {
+        if (!(payload.file instanceof File) || payload.file.size > 16384) throw new Error('蓝牙配置文件须小于 16 KiB。');
+        const profile = parseBleProfile(new TextDecoder('utf-8', { fatal: true }).decode(await payload.file.arrayBuffer()));
+        state.bleDevice = null; return profile;
+      }
+      case 'export-ble-profile':
+        download(filename('ble.json'), serializeBleProfile({ ...payload, mtuPayload: Number(payload.mtuPayload), interWriteDelayMs: Number(payload.interWriteDelayMs ?? 0) }), 'application/json'); return;
       case 'connect':
         if (payload.modelConfirmed !== true || payload.selectedModel !== PROFILE.model) throw new Error('请先明确确认设备本体型号为 UV-K10 Pro。');
         if (state.session?.connected) throw new Error('请先断开当前连接。');
@@ -387,9 +579,12 @@ async function action(type, payload = {}) {
           state.connectionState = 'connecting'; state.connectionError = ''; state.transport = payload.transport; render();
           const Transport = { serial: WebSerialTransport, usb: WebUsbTransport, ble: WebBluetoothTransport }[payload.transport];
           if (!Transport) throw new Error('不支持的传输方式。');
-          const transport = await Transport.request(payload);
+          const bleProfile = payload.transport === 'ble' ? normalizeBleProfile(payload) : null;
+          const device = bleProfile && state.bleDevice?.serviceUuid === bleProfile.serviceUuid ? state.bleDevice.device : undefined;
+          const transport = await Transport.request({ ...payload, ...(device ? { device } : {}) });
           const session = new ProgrammingSession(transport, { selectedModel: payload.selectedModel });
           state.session = session; state.sessionId = crypto.randomUUID();
+          session.onEvent(event => { if (state.session === session) receiveLiveEvent(event); });
           try {
             const identity = await session.connect({ signal }); state.connectionState = 'connected';
             log(`已收到固件 ${identity.firmware}，参数版本 ${identity.paramsVersion}。HELLO 已同步 RTC。${identity.writeEnabled ? '可以读取并建立配置基线。' : '当前身份或保护状态不允许写入。'}`, identity.writeEnabled ? 'success' : 'warning');
@@ -409,6 +604,35 @@ async function action(type, payload = {}) {
             if (!session.connected) state.connectionState = 'error';
             throw new Error(error.code === 'INVALID_PASSWORD' ? '密码格式无效：去除两端空格后最多 32 个 UTF-8 字节。' : '设备密码认证未成功；未自动重试。请确认密码并在需要时重新连接。');
           }
+        });
+      case 'edit-startup-password':
+      case 'edit-programming-password':
+        needSession();
+        if (!connectionModel().writable) throw new Error('请先完成正常认证并读取本次设备配置。');
+        ui.openCredentials({ kind: type === 'edit-startup-password' ? 'startup' : 'programming', passwordRequired: state.session.identity.passwordValid === 1 }); return;
+      case 'change-credentials':
+        return await runBusy('提交设备密码变更', async signal => {
+          const session = needSession(), ws = needWorkspace();
+          if (!connectionModel().writable) throw new Error('请先完成认证并读取本次设备配置。');
+          try {
+            let result;
+            if (payload.kind === 'startup') {
+              if (!payload.disable && payload.newPassword !== payload.confirmPassword) throw new Error('两次密码不一致。');
+              ws.require(0x17000, 4);
+              const expectedCurrent = new DataView(ws.baseline.buffer, ws.baseline.byteOffset, ws.baseline.byteLength).getUint32(0x17000, true);
+              result = await session.changeStartupPassword({ password: payload.newPassword, disable: payload.disable === true, expectedCurrent, signal });
+            } else if (payload.kind === 'programming') {
+              if (!payload.disable && normalizePassword(payload.newPassword).length === 0) throw new Error('清除密码需要明确勾选清除选项。');
+              result = await session.changeProgrammingPassword({ currentPassword: payload.currentPassword,
+                newPassword: payload.newPassword, confirmPassword: payload.confirmPassword, signal });
+            }
+            else throw new Error('无效的密码类型。');
+            state.session = null; state.sessionId = null; state.connectionState = 'disconnected'; state.plan = null;
+            log(`${payload.kind === 'startup' ? '开机' : '编程'}密码${result.disabled ? '清除' : '修改'}已验证。连接已关闭，请重新连接并读取配置。`, 'success');
+          } catch (error) {
+            if (!session.connected) { state.sessionId = null; state.connectionState = 'error'; state.plan = null; }
+            throw new Error(error.mayHaveModifiedDevice ? '密码变更结果未能完全确认；连接已停止，请重新连接并核对设备密码状态。' : '密码修改未完成，请核对当前密码、新密码格式和设备锁定状态。');
+          } finally { payload.currentPassword = ''; payload.newPassword = ''; payload.confirmPassword = ''; }
         });
       case 'disconnect':
         await state.session?.close(); state.session = null; state.sessionId = null; state.connectionState = 'disconnected'; state.plan = null;
@@ -472,7 +696,12 @@ async function action(type, payload = {}) {
           if (result.warnings.length > 20) log(`另有 ${result.warnings.length - 20} 个空槽仍需明确设置属性后启用。`, 'warning');
           render(); return;
         }
-        const imported = /\.(?:k10|json)$/i.test(file.name) ? await importProject(new TextDecoder('utf-8', { fatal: true }).decode(content), file.name) : importNor(content, file.name);
+        let imported;
+        if (/\.dat$/i.test(file.name)) {
+          if (!await ui.confirm({ title: '确认官方 DAT 文件来源', message: '此格式没有唯一机型标记。请确认文件由 UV-K10 Pro 的 CPS 0.56 保存；其他机型即使文件长度相同也不能混用。', confirmLabel: '确认为 UV-K10 Pro 文件' })) return false;
+          imported = await importCpsDat(content, file.name, { modelConfirmed: true });
+          log('已解析官方 DAT 配置；文件填充区单独保留，不作为已读取的 NOR 数据。');
+        } else imported = /\.(?:k10|json)$/i.test(file.name) ? await importProject(new TextDecoder('utf-8', { fatal: true }).decode(content), file.name) : importNor(content, file.name);
         if (state.workspace?.mode === 'device' && state.workspace.sessionId === state.sessionId && state.session?.connected) {
           if (!await ui.confirm({ title: '把备份配置合并到本次设备工作区？', message: '只复制双方已覆盖且格式已允许写入的配置区；保留本次设备原始基线。写入前仍需核对差异。', confirmLabel: '合并并预览' })) return false;
           const result = overlayConfiguration(state.workspace, imported); state.workspace.apply(result.data);
@@ -487,6 +716,12 @@ async function action(type, payload = {}) {
         if (payload.format === 'log') { download(filename('log.txt'), state.logs.map(x => `${x.time} [${x.level}] ${x.message}`).join('\n'), 'text/plain'); return; }
         const ws = needWorkspace();
         if (payload.format === 'project') download(filename('k10'), await exportProject(ws), 'application/json');
+        else if (payload.format === 'cps-dat') {
+          const report = inspectCpsDatExport(ws);
+          const content = await exportCpsDat(ws);
+          report.warnings.forEach(warning => log(warning, 'warning'));
+          download(filename('dat'), content);
+        }
         else if (payload.format === 'nor') download(filename('bin'), exportNor(ws));
         else if (payload.format === 'csv') download(filename('channels.csv'), exportChannelsCsv(ws), 'text/csv;charset=utf-8');
         else if (payload.format === 'cps-csv') download(filename('cps-22.csv'), exportCpsCsv(ws), 'text/csv;charset=utf-8');
@@ -597,7 +832,7 @@ async function action(type, payload = {}) {
       default: throw new Error(`未实现的操作：${type}`);
     }
   } catch (error) {
-    if (['connect', 'read', 'write'].includes(type)) {
+    if (['connect', 'read', 'write', 'send-aprs', 'sync-location'].includes(type)) {
       state.connectionError = error.message;
       if (state.session && !state.session.connected) state.connectionState = 'error';
       render();

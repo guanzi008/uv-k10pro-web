@@ -243,3 +243,195 @@ test('mount contract: explicit model selection, ephemeral password, and action f
     assert.deepEqual(env.errors.map(error => String(error)), []);
   } finally { ui?.destroy(); env.cleanup(); }
 });
+
+test('real app: channel tools, signed BFO, native DAT export and blank channel table are wired to data', async () => {
+  const env = environment();
+  try {
+    await import('../src/app.mjs?channel-tools');
+    await press(namedButton('载入演示工作区'));
+    await press(required('input[aria-label="选择信道 1"]'));
+    await press(namedButton('复制'));
+    await press(namedButton('粘贴 1 个信道'));
+    input('start', '13'); await saveEditor();
+    assert.equal(document.querySelectorAll('#view-host tbody tr').length, 13);
+    await press(namedButton('撤销'));
+    assert.equal(document.querySelectorAll('#view-host tbody tr').length, 12);
+    await press(namedButton('重做'));
+    assert.equal(document.querySelectorAll('#view-host tbody tr').length, 13);
+    await press(namedButton('批量参数')); input('power', '2'); await saveEditor();
+    assert.match(required('#view-host tbody tr').textContent, /TURBO/);
+    await press(namedButton('按步进生成'));
+    input('start', '20'); input('count', '3'); input('rxStartMHz', '146.000000'); input('stepMHz', '0.025000'); input('namePrefix', 'GEN');
+    await saveEditor();
+    assert.match(required('#view-host tbody').textContent, /GEN3/);
+    assert.match(required('#view-host tbody').textContent, /146\.050000/);
+
+    await nav('si4732');
+    const band = required('select[aria-label="广播波段"]'); band.value = 'SW'; band.dispatchEvent(new Event('change', { bubbles: true }));
+    await press(required('button', radioRow(1, 'SW')));
+    input('demodulation', '2'); input('bfo_hz', '-100'); await saveEditor();
+    assert.match(radioRow(1, 'SW').textContent, /-100 Hz/);
+    await nav('backup'); await press(namedButton('导出官方 DAT'));
+    await eventually(() => env.downloads.some(item => item.filename.endsWith('.dat')), 'Native DAT download was not produced');
+    await nav('channels'); await press(namedButton('新建信道表'));
+    await press(namedButton('替换工作区', required('#confirm-dialog')));
+    await eventually(() => required('#summary-name').textContent === '新建信道表', 'Blank project did not replace workspace');
+    assert.equal(document.querySelectorAll('#view-host tbody tr').length, 0);
+    assert.equal(required('#read-button').disabled, true);
+    await nav('logs'); assert.doesNotMatch(required('.log-output').textContent, /ERROR|未实现的操作/);
+    assert.deepEqual(env.errors.map(error => String(error)), []);
+  } finally { env.cleanup(); }
+});
+
+test('credential dialog confirms direct change and erases all inputs without echoing controller secrets', async () => {
+  const env = environment(); let ui, submitted, atCall, reject;
+  try {
+    const { mountWorkbench } = await import('../src/ui/workbench.mjs');
+    ui = mountWorkbench({ onAction(type, payload) {
+      if (type === 'change-credentials') {
+        submitted = payload; atCall = { ...payload };
+        return new Promise((_, fail) => { reject = fail; });
+      }
+    } });
+    ui.render({ connection: { state: 'connected', writable: true, passwordRequired: false } });
+    ui.openCredentials({ kind: 'programming', passwordRequired: true });
+    const dialog = required('#credentials-dialog'), form = required('form', dialog);
+    required('#credential-current').value = 'old-synthetic-secret';
+    required('#credential-new').value = 'new-synthetic-secret';
+    required('#credential-confirm').value = 'different-secret';
+    const review = required('#credential-review-confirm');
+    review.checked = true;
+    submit(form); await delay(0);
+    assert.equal(submitted, undefined, 'Mismatched confirmation cannot reach the controller');
+    required('input[name="confirm"]').value = 'new-synthetic-secret';
+    submit(form); await delay(0);
+    assert.equal(atCall.currentPassword, 'old-synthetic-secret'); assert.equal(atCall.newPassword, 'new-synthetic-secret');
+    assert.ok([...dialog.querySelectorAll('input[type="password"]')].every(input => input.value === ''));
+    reject(new Error('Never render new-synthetic-secret')); await delay(0);
+    assert.doesNotMatch(document.body.textContent, /new-synthetic-secret|old-synthetic-secret/);
+    assert.equal(submitted.currentPassword, ''); assert.equal(submitted.newPassword, ''); assert.equal(submitted.confirmPassword, '');
+    assert.equal(env.window.localStorage.length, 0); assert.equal(env.window.sessionStorage.length, 0);
+    ui.closeDialog();
+    ui.openCredentials({ kind: 'startup' });
+    required('#credential-disable').click();
+    assert.equal(required('input[name="new"]').disabled, true);
+    assert.equal(required('input[name="confirm"]').disabled, true);
+    ui.closeDialog();
+  } finally { ui?.destroy(); env.cleanup(); }
+});
+
+test('BLE discovery UI exposes only observed write and notification characteristics', async () => {
+  const env = environment(); let ui; const calls = [];
+  const service = '0000ff12-0000-1000-8000-00805f9b34fb', write = '0000fff2-0000-1000-8000-00805f9b34fb', notify = '0000fff3-0000-1000-8000-00805f9b34fb';
+  try {
+    const { mountWorkbench } = await import('../src/ui/workbench.mjs');
+    ui = mountWorkbench({ onAction(type, payload) {
+      calls.push({ type, payload: { ...payload } });
+      if (type === 'discover-ble') return { serviceUuid: service, characteristics: [
+        { uuid: write, properties: { write: true } }, { uuid: notify, properties: { notify: true } },
+        { uuid: '0000fff1-0000-1000-8000-00805f9b34fb', properties: { read: true } } ] };
+    } });
+    ui.render({ capabilities: { ble: true, serial: false, usb: false } });
+    await press(required('#connect-button'));
+    const dialog = required('#connection-dialog');
+    input('serviceUuid', service, dialog);
+    await press(namedButton('检查 BLE 服务', dialog));
+    await eventually(() => document.querySelector('[data-field-key="writeUuid"]')?.tagName === 'SELECT', 'Discovered choices were not rendered');
+    const tx = required('[data-field-key="writeUuid"]', dialog), rx = required('[data-field-key="notifyUuid"]', dialog);
+    assert.deepEqual([...tx.options].map(option => option.value), ['', write]);
+    assert.deepEqual([...rx.options].map(option => option.value), ['', notify]);
+    assert.equal(calls.filter(call => call.type === 'connect').length, 0, 'Inspection must not implicitly start programming');
+    input('writeUuid', write, dialog); input('notifyUuid', notify, dialog); input('wireMode', 'plain', dialog); input('responseChecksum', 'placeholder', dialog);
+    await press(namedButton('导出连接配置', dialog));
+    assert.equal(calls.find(call => call.type === 'export-ble-profile').payload.writeUuid, write);
+    assert.equal(required('[data-field-key="mtuPayload"]', dialog).max, '244');
+    assert.deepEqual(env.errors.map(error => String(error)), []);
+  } finally { ui?.destroy(); env.cleanup(); }
+});
+
+test('real app: APRS preview stays offline, preserves drafts, and invalidates after edits', async () => {
+  const env = environment();
+  try {
+    await import('../src/app.mjs?live-offline');
+    await nav('live');
+    const form = required('form[aria-label="APRS 消息"]');
+    for (const [key, value] of Object.entries({ source:'N0CALL', sourceSsid:'07', destination:'APTEST', destinationSsid:'0.0',
+      addressee:'TEST-1', path:'WIDE1-1', text:'Hello|~{' })) input(key,value,form);
+    submit(form);
+    await eventually(() => document.querySelector('.live-message-preview'), 'APRS preview was not built');
+    assert.equal(required('.live-message-preview').textContent, ':TEST-1   :Hello');
+    assert.match(required('.live-preview').textContent, /移除 3/);
+    required('#live-send-confirm').click();
+    assert.equal(namedButton('发送一次').disabled, true, 'Offline preview cannot transmit');
+    await nav('channels'); await nav('live');
+    assert.equal(required('[data-field-key="text"]').value, 'Hello|~{');
+    input('text','Changed',required('form[aria-label="APRS 消息"]'));
+    assert.equal(document.querySelector('.live-message-preview'), null);
+    assert.equal(required('#live-send-confirm').checked, false);
+    assert.equal(namedButton('同步一次位置与时间').disabled, true);
+    assert.equal(env.window.localStorage.length, 0); assert.equal(env.window.sessionStorage.length, 0);
+    assert.deepEqual(env.errors.map(error => String(error)), []);
+  } finally { env.cleanup(); }
+});
+
+test('live UI: explicit preview confirmation, passive events, and one-shot position do not cross-trigger', async () => {
+  const env = environment(); let ui; const calls = [];
+  try {
+    const { mountWorkbench } = await import('../src/ui/workbench.mjs');
+    const { prepareAprsMessage } = await import('../src/core/aprs-frame.mjs');
+    const defaults = { source:'N0CALL',sourceSsid:0,destination:'APTEST',destinationSsid:0,path:'' };
+    const live = { canOperate:true,canLocate:true,previewForCurrentSession:true,defaults,events:[] };
+    ui = mountWorkbench({ onAction(type,payload) {
+      calls.push({type,payload});
+      if(type==='preview-aprs') {
+        const input = {...payload.values,sourceSsid:Number(payload.values.sourceSsid),destinationSsid:Number(payload.values.destinationSsid)};
+        live.preview={...prepareAprsMessage(input),input,id:'synthetic-preview'}; ui.render({live});
+      }
+      if(type==='locate-browser')return {latitude:30.5,longitude:120.25,altitudeMeters:0,accuracyMeters:12,altitudeUnavailable:true};
+    } });
+    ui.render({live,connection:{state:'connected',passwordRequired:false}}); ui.navigate('live');
+    await press(namedButton('从工作区填入'));
+    let form=required('form[aria-label="APRS 消息"]'); input('addressee','TEST-1',form); input('text','Synthetic',form);
+    submit(form); await delay(0);
+    assert.equal(namedButton('发送一次').disabled,true);
+    required('#live-send-confirm').click(); assert.equal(namedButton('发送一次').disabled,false);
+    await press(namedButton('发送一次'));
+    assert.equal(calls.filter(call=>call.type==='send-aprs').length,1);
+    assert.equal(calls.find(call=>call.type==='send-aprs').payload.previewId,'synthetic-preview');
+
+    live.events=[{direction:'receive',time:'2026-11-26T00:00:00Z',source:'TEST-1',destination:'APTEST',information:'<script>synthetic</script>',length:128,packetHex:'abcd',possiblyTruncated:true}];
+    ui.render({live});
+    assert.equal(document.querySelectorAll('.live-history tbody tr').length,1);
+    assert.equal(document.querySelector('.live-history script'),null);
+    assert.match(required('.live-history').textContent,/可能被设备截断/);
+    assert.equal(calls.filter(call=>call.type==='send-aprs').length,1,'Passive events cannot trigger sending');
+
+    await press(namedButton('读取浏览器当前位置'));
+    assert.equal(required('[data-field-key="latitude"]').value,'30.5');
+    assert.match(required('form[aria-label="一次性位置同步"]').textContent,/未提供海拔/);
+    assert.equal(calls.filter(call=>call.type==='sync-location').length,0);
+    required('#live-location-confirm').click(); submit(required('form[aria-label="一次性位置同步"]')); await delay(0);
+    assert.equal(calls.filter(call=>call.type==='sync-location').length,1);
+    assert.deepEqual(calls.find(call=>call.type==='sync-location').payload.values,{latitude:'30.5',longitude:'120.25',altitudeMeters:'0'});
+    assert.deepEqual(env.errors.map(error => String(error)), []);
+  } finally { ui?.destroy(); env.cleanup(); }
+});
+
+test('real app: cancel browser location ignores its late success callback', async () => {
+  const env=environment(); let success;
+  try {
+    Object.defineProperty(env.window.navigator,'geolocation',{configurable:true,value:{getCurrentPosition(callback){success=callback;}}});
+    await import('../src/app.mjs?live-location-cancel'); await nav('live');
+    const form=required('form[aria-label="一次性位置同步"]'); input('latitude','12.5',form); input('longitude','34.5',form);
+    await press(namedButton('读取浏览器当前位置'));
+    assert.equal(typeof success,'function'); assert.equal(required('#task-progress').hidden,false);
+    await press(required('#cancel-button'));
+    await eventually(()=>required('#task-progress').hidden,'Cancellation did not finish the operation');
+    success({coords:{latitude:88,longitude:77,altitude:66,accuracy:5}}); await delay(0);
+    assert.equal(required('[data-field-key="latitude"]').value,'12.5');
+    assert.equal(required('[data-field-key="longitude"]').value,'34.5');
+    assert.equal(required('[data-field-key="altitudeMeters"]').value,'0');
+    assert.equal(required('#connection-state').textContent,'未连接');
+    assert.deepEqual(env.errors.map(error=>String(error)),[]);
+  } finally {env.cleanup();}
+});

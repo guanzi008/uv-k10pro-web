@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { effectiveBfoHz, BFO_HZ_LIMITS } from '../src/core/radio-codec.mjs';
 import { decodeRadioBank, patchRadioStation, patchRadioHeader, clearRadioStation, radioStationOffset } from '../src/core/radio-codec.mjs';
 
 test('FM and SW CPS fixed-array fixtures include record zero VFO', () => {
@@ -20,6 +21,31 @@ test('FM and SW CPS fixed-array fixtures include record zero VFO', () => {
   assert.equal(sw.stations[128].reserved, 0xa5);
   assert.equal(radioStationOffset('si4732', 'sw', 128), 0x12b08);
   assert.deepEqual(Array.from(image.subarray(0x12108, 0x1210c)), [0x10, 0x6e, 0x86, 0x00]);
+});
+
+test('signed BFO Hz follows original ARM quantization and preserves unedited words', () => {
+  const image = new Uint8Array(0x13000).fill(0xa5);
+  const edited = patchRadioStation(image, 'si4732', 'sw', 1, { bfo_hz: -100 });
+  const s = decodeRadioBank(edited, 'si4732', 'sw').stations[1];
+  assert.equal(s.bfo_raw, 0xff9c);
+  assert.equal(s.bfo_hz, -100);
+  assert.equal(s.bfo_effective_hz, -100);
+  assert.equal(s.bfo_in_receiver_range, true);
+  assert.deepEqual(edited.subarray(s.offset ?? radioStationOffset('si4732', 'sw', 1), radioStationOffset('si4732', 'sw', 1) + 6), image.subarray(radioStationOffset('si4732', 'sw', 1), radioStationOffset('si4732', 'sw', 1) + 6));
+  assert.equal(effectiveBfoHz(0xff9b), -100);
+  assert.equal(effectiveBfoHz(101), 100);
+  assert.equal(effectiveBfoHz(65535), 0);
+  assert.equal(effectiveBfoHz(0x8000), -32760);
+  assert.equal(effectiveBfoHz(0x7fff), 32760);
+  const preserved = patchRadioStation(image, 'si4732', 'sw', 1, { bfo_raw: 0xff9b });
+  const frequencyEdit = patchRadioStation(preserved, 'si4732', 'sw', 1, { frequency_hz: 14200000 });
+  assert.equal(decodeRadioBank(frequencyEdit, 'si4732', 'sw').stations[1].bfo_raw, 0xff9b);
+  for (const value of [BFO_HZ_LIMITS.min, BFO_HZ_LIMITS.max])
+    assert.equal(decodeRadioBank(patchRadioStation(image, 'si4732', 'sw', 0, { bfo_hz: value }), 'si4732', 'sw').vfo.bfo_hz, value);
+  assert.throws(() => patchRadioStation(image, 'si4732', 'sw', 0, { bfo_hz: 101 }), /multiple of 10/);
+  assert.throws(() => patchRadioStation(image, 'si4732', 'sw', 0, { bfo_hz: 16390 }), /integer/);
+  assert.throws(() => patchRadioStation(image, 'si4732', 'sw', 0, { bfo_hz: 0, bfo_raw: 0 }), /either/);
+  assert.throws(() => patchRadioStation(image, 'bk1080', 'fm', 0, { bfo_hz: 0 }), /BFO/);
 });
 
 test('BK1080 profile shares only FM storage; AM/SSB/BFO remain inaccessible', () => {

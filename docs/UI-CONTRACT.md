@@ -18,7 +18,7 @@ ui.render(model);
     id: 'unique-import-or-session-id', // 改变时清空表格选择及未应用的设置表单草稿
     name: '设备备份.bin', mode: 'empty'|'demo'|'offline'|'device',
     bytes: 4194304, dirtyBytes: 0, modifiedCount: 0,
-    complete: false, description: ''
+    complete: false, description: '', canUndo: false, canRedo: false, clipboardCount: 0
   },
   connection: {
     state: 'disconnected'|'connecting'|'connected'|'error',
@@ -33,6 +33,8 @@ ui.render(model);
   contacts: [{ index: 0, number: 1, type: 'DTMF', contactKind: 'dtmf',
     name: 'LOCAL', code: '12345', active: true }],
   messages: [{ index: 0, number: 1, name: '消息 1', text: '内容', active: true }],
+  live: { canOperate: false, canLocate: false, preview: null, previewForCurrentSession: false,
+    events: [], defaults: {}, lastLocationSync: null, reason: '' },
   radio: {
     si4732: [{ index: 0, number: 1, band: 'FM', name: '', frequency: '88.100 MHz',
       mode: 'FM', bfo: '', active: true, modified: false }],
@@ -46,7 +48,7 @@ ui.render(model);
   changes: [{ address: 0x1000, length: 64, region: '普通信道',
     label: '信道 65', before: '00 01', after: '02 03' }],
   logs: [{ time: '10:23:44', level: 'info'|'success'|'warning'|'error', message: '...' }],
-  capabilities: { serial: true, usb: true, ble: false, bleReason: '...',
+  capabilities: { serial: true, usb: true, ble: false, bleReason: '...', defaultBleProfile: {},
     features: [{ name: 'Web Serial', supported: true, detail: '...' }] }
 }
 ```
@@ -77,17 +79,25 @@ ui.openEditor('channel'|'vfo'|'si4732'|'bk1080'|'scan'|'contact'|'message', reco
 
 | type | payload |
 |---|---|
-| `navigate` | `{view:'channels'|'vfo'|'si4732'|'bk1080'|'settings'|'scans'|'contacts'|'messages'|'backup'|'logs'}` |
-| `connect` | `{transport:'serial'|'usb'|'ble', selectedModel:'UV-K10 Pro', modelConfirmed:true, baudRate:38400|115200, serviceUuid:'', writeUuid:'', notifyUuid:'', writeMode:'withResponse'|'withoutResponse', mtuPayload:20, wireMode:'plain'|'xor'|'', responseChecksum:'placeholder'|'crc16-x25'|''}`；仅在明确勾选核对设备本体型号后提交。BLE 两项线协议选择必须显式填写，串口/USB忽略空值并由session使用已核实配置 |
+| `navigate` | `{view:'channels'|'vfo'|'si4732'|'bk1080'|'settings'|'scans'|'contacts'|'messages'|'live'|'backup'|'logs'}` |
+| `connect` | `{transport,selectedModel:'UV-K10 Pro',modelConfirmed:true,baudRate,...bleProfile}`；明确核对机型后提交。BLE profile 包含 serviceUuid/writeUuid/notifyUuid、writeMode、wireMode、responseChecksum、writeStrategy、interWriteDelayMs、mtuPayload、lengthConvention；枚举见 [BLE](ble-profile.md)。控制器通过 capabilities.defaultBleProfile 提供 K8 预设，UI 不猜 UUID |
+| `discover-ble` | `{serviceUuid}`；返回 `{serviceUuid,characteristics:[{uuid,properties}]}`。授权的设备句柄仅在控制器内保存，检查不连接编程会话、不发 HELLO |
+| `import-ble-profile` / `export-ble-profile` | `{file}` / 明确 profile 字段；文件不包含设备句柄或密码 |
 | `authenticate` | `{password:string}`；只在已连接且 passwordRequired 时开放。UI提交后立即清空输入，操作完成后清空payload字段；controller不得将凭据或原始payload写入日志、工作区或存储。认证失败应返回固定错误说明，不包含密码 |
+| `edit-startup-password` / `edit-programming-password` | `{}`；控制器核对本次设备读取基线后打开专用表单 |
+| `change-credentials` | `{kind:'startup'|'programming',currentPassword,newPassword,confirmPassword,disable}`；UI提交期间禁用和清空所有密码框，完成/关闭再次清空。空白新密码不能隐式代替清除选项。成功后关闭连接并失效 sessionId |
 | `disconnect` | `{}` |
 | `read` | `{scope:'all'}` |
 | `cancel` | `{}` |
 | `preview-write` | `{}` |
 | `write` | `{}`，只由写入预览的确认按钮触发，预览必须 `canWrite:true` |
-| `import` | `{file:File}`，文件选择接受 `.bin,.json,.csv,.k10` |
-| `export` | `{format:'project'|'nor'|'csv'|'cps-csv'|'radio-csv'|'log', chip?:'si4732'|'bk1080'}`；csv为本项目无损CSV，cps-csv为官方PC22列非无损格式 |
+| `import` | `{file:File}`，文件选择接受 `.bin,.dat,.json,.csv,.k10`；DAT 来源核对由控制器具体确认 |
+| `export` | `{format:'project'|'nor'|'cps-dat'|'csv'|'cps-csv'|'radio-csv'|'log',chip?}`；导出条件由 codec 检查 |
 | `demo` | `{}` |
+| `new-channels` | `{}`；只创建信道与属性区，其他配置仍无覆盖 |
+| `copy-channels` | `{indexes,cut:boolean}`；剪切不立即清空来源，直到成功粘贴 |
+| `channel-tool` | `{operation:'paste'|'move'|'sort'|'batch'|'generate',indexes?}`；通过通用编辑器提交，控制器检查 workspaceId/revision 后原子应用 |
+| `undo` / `redo` | `{}`；仅工作区本地历史，不跨成功设备写入 |
 | `edit-channel` | `{record, index}` |
 | `add-channel` | `{}` |
 | `delete-channels` | `{indexes:number[]}`，仅清空当前选中记录，由 controller 确认并应用 |
@@ -101,6 +111,11 @@ ui.openEditor('channel'|'vfo'|'si4732'|'bk1080'|'scan'|'contact'|'message', reco
 | `clear-log` | `{}` |
 | `restore-recovery` | `{}`；载入最近本地写前恢复快照，controller须将其视为离线数据，不授予在线写权限 |
 | `reboot` | `{}`；仅连接且writable时显示为可用，controller另行请求明确确认后才发设备命令，不自动重启 |
+| `preview-aprs` | `{values:{source,sourceSsid,destination,destinationSsid,addressee,path,text}}`；控制器构造最终帧、保存 input/id/sessionId 并更新 live.preview |
+| `send-aprs` | `{previewId,values}`；UI核对未变更预览、当前连接、非空最终正文和勾选确认；控制器再验证快照与会话并仅发送一次 |
+| `locate-browser` | `{}`；明确点击才申请一次定位。返回坐标、精度和高度缺失状态，不自动提交设备；取消后忽略迟到结果 |
+| `sync-location` | `{values:{latitude,longitude,altitudeMeters}}`；单独确认提交；成功后旧 challenge/认证/写入基线失效 |
+| `clear-live-events` / `export-live-events` | `{}`；最近 200 项内存记录，刷新即清空，不自动持久化 |
 
 导航、搜索、排序和分页由 UI 自管，不要求 controller 重建行列表。`onAction` 可返回 Promise，抛错会显示明确错误；没有回调时不会假称操作成功。
 
@@ -108,6 +123,7 @@ ui.openEditor('channel'|'vfo'|'si4732'|'bk1080'|'scan'|'contact'|'message', reco
 
 - `ui.toast(message, tone='info')`：短消息，tone 支持 info/success/warning/error。
 - `ui.setBusy(boolean, label?)`：禁止并发动作，保留取消按钮；进度另由 connection.progress 提供。
+- `ui.openCredentials({kind:'startup'|'programming',passwordRequired})`：打开独立密码表单，错误不回显提交内容。
 - `ui.openWritePreview({changes?,summary?,canWrite:false,reason:''})`：具体差分审阅。确认写入仅在 canWrite 且勾选核对项后可用；离线状态仍可审阅差分。
 - `ui.confirm({title,message,confirmLabel='确认',danger:false})`：返回 Promise<boolean>，用于替换未保存工作区等具体操作。
 - `ui.closeDialog()`：关闭编辑器、连接与预览弹窗。
@@ -118,3 +134,9 @@ ui.openEditor('channel'|'vfo'|'si4732'|'bk1080'|'scan'|'contact'|'message', reco
 connection.passwordRequired=true 且已连接时显示“输入设备密码”按钮，密码输入使用 type=password 和 autocomplete=current-password。认证成功后controller更新passwordRequired=false；未认证前读取按钮禁用，写入仍由完整会话门槛控制。UI不会存储或记入日志，提交/关闭都会清空输入，报错不会回显密码。
 
 连接对话框明确提示HELLO同步RTC，必须勾选核对设备本体型号为UV-K10 Pro。USB VID/PID、固件字符串与参数版本均不作为唯一型号证据，controller应核验modelConfirmed并将selectedModel传给session。浏览器serial/usb/ble能力默认从navigator检测，实际连接与硬件验证仍由controller/session负责。
+
+## 实时页模型与分流
+
+`live` 是完整替换的顶层对象。`preview` 包含最终信息文本、帧长、packetHex、warnings、规范化结果及原输入；数字 SSID 按数值比较，避免 `01` 与 `1` 的等价写法误判过期。其他文本精确比较。修改后重新预览和确认；离线可预览，但 `canOperate` 与 `previewForCurrentSession` 缺一时不能提交。
+
+`events` 中的所有消息、呼号和原始帧均通过 textContent 展示；接收事件只更新列表，不触发发送。字段包括 `direction,time,source,destination,information,packetHex,length,possiblyTruncated,accepted,result`。仅 `accepted` 描述设备应答，不代表 RF 送达。坐标表单与消息表单草稿独立，浏览器定位、设备位置同步及发送消息互不自动触发。

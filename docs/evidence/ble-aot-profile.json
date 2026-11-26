@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "generated_on": "2026-11-26",
+  "scope": "Recovered Dart AOT function calls and object-field data flow. Detailed transport/framing trace is APK 68; APK 64 independently confirms the K8 getter, profile name and GATT UUID stores. No Android process, radio hardware, ATT exchange or HCI capture was run.",
+  "supersedes": "ble-static-inventory.json UUID-role conclusions only; byte/string inventory remains historical",
+  "address_unit": "ELF virtual code address in the exact decompressed lib/arm64-v8a/libapp.so sample, not APK offset or Dart heap object identity",
+  "artifacts": [
+    {
+      "apk": "QUANSHENG-1.1.0-64.apk",
+      "apk_sha256": "b12adceddfe49c7df04eab3b8b6dbc336d7a6eb32a0df62bc75b7e978559d048",
+      "libapp_sha256": "8851fea2ebc54442d12062cba11673d3d8a0aad05dbcfd15009b657b21da7a4f",
+      "libapp_bytes": 12518288,
+      "dart_version": "3.12.1 (stable)",
+      "snapshot_hash": "ace654289f5abc240509fc941453ebc5"
+    },
+    {
+      "apk": "QUANSHENG-1.1.0-68.apk",
+      "apk_sha256": "0395fa0332d025da73a39aad49b01eaedfe59e8296f17df56fa937ff9b83b326",
+      "libapp_sha256": "c2cbc6245093682907109259fa1c888fa1f41c6505a48d113e0b5ca09fd5dabb",
+      "libapp_bytes": 12583824,
+      "dart_version": "3.12.1 (stable)",
+      "snapshot_hash": "ace654289f5abc240509fc941453ebc5"
+    }
+  ],
+  "analysis_tool": {
+    "name": "Blutter",
+    "revision": "4a60ac648bf448c5a7596437243bcd0b9376fdf0",
+    "dart_sdk": "3.12.1",
+    "dart_revision": "fc3da898ea1664b8a8633f6ec03d2c2290bb3d01",
+    "method": "Matched Dart snapshot metadata reader plus annotated ARM64 disassembly; not vendor App execution"
+  },
+  "profile": {
+    "model": "UV-K10 Pro / K8",
+    "serviceUuid": "0000ff12-0000-1000-8000-00805f9b34fb",
+    "writeUuid": "0000fff2-0000-1000-8000-00805f9b34fb",
+    "notifyUuid": "0000fff3-0000-1000-8000-00805f9b34fb",
+    "writeMode": "withResponse",
+    "wireMode": "plain",
+    "responseChecksum": "crc16-x25-or-placeholder",
+    "lengthConvention": "android-k8",
+    "writeStrategy": "whole-frame",
+    "interWriteDelayMs": 120
+  },
+  "bindings": [
+    {
+      "apk": 64,
+      "getter": {
+        "name": "K8RadioProtocol.gattProfile",
+        "entry": "0xBD6F18",
+        "call": "0xBD6F2C",
+        "target": "0xBD6F44"
+      },
+      "constructor": {
+        "name": "BleGattProfile.k8",
+        "entry": "0xBD6F44",
+        "model_name_store": "0xBD6FE0",
+        "service_store": "0xBD6FE8",
+        "tx_store": "0xBD6FF0",
+        "rx_store": "0xBD6FF8",
+        "k8_behavior_flag_store": "0xBD7000"
+      }
+    },
+    {
+      "apk": 68,
+      "getter": {
+        "name": "K8RadioProtocol.gattProfile",
+        "entry": "0xBE82A4",
+        "call": "0xBE82B8",
+        "target": "0xBE82D0"
+      },
+      "constructor": {
+        "name": "BleGattProfile.k8",
+        "entry": "0xBE82D0",
+        "model_name_store": "0xBE836C",
+        "service_store": "0xBE8374",
+        "tx_store": "0xBE837C",
+        "rx_store": "0xBE8384",
+        "k8_behavior_flag_store": "0xBE838C"
+      }
+    }
+  ],
+  "apk68_consumers": {
+    "service_match": {
+      "function": "BleGattProfile.resolveFromServices",
+      "entry": "0x481004",
+      "profile_field": "0x0B",
+      "comparison_range": [
+        "0x4810A4",
+        "0x481134"
+      ]
+    },
+    "characteristic_match": {
+      "function": "FlutterBleRadioTransport.connect",
+      "entry": "0x47C53C",
+      "tx_field": "0x0F",
+      "rx_field": "0x13",
+      "tx_match": [
+        "0x47D01C",
+        "0x47D070"
+      ],
+      "rx_match": [
+        "0x47D090",
+        "0x47D0D0"
+      ],
+      "nonnull_checks": [
+        "0x47D130",
+        "0x47D140"
+      ],
+      "tx_transport_store": "0x47D154",
+      "tx_transport_field": "0x23"
+    },
+    "notification_selection": {
+      "function": "FlutterBleRadioTransport._subscribeAllNotifications",
+      "entry": "0x47F378",
+      "eligible_properties": [
+        "notify",
+        "indicate"
+      ],
+      "preferred_field": "0x13",
+      "preferred_uuid": "0000fff3-0000-1000-8000-00805f9b34fb",
+      "fallback": "If no preferred notification-capable characteristic exists, stock App considers all notification-capable characteristics in the selected service. Web preset deliberately requires FFF3 notify/indicate, with manual selection for discrepant devices."
+    },
+    "write_mode": {
+      "entry": "0x76F960",
+      "function": "BluetoothCharacteristic.write",
+      "request_type_store": "0x76FA90",
+      "enum_object": "BmWriteType@a4cb41",
+      "enum_name": "withResponse",
+      "enum_index": 0,
+      "allow_long_write_field": "0x23",
+      "allow_long_write_named_map_key": "0x7700B4"
+    },
+    "mtu": {
+      "function": "FlutterBleRadioTransport._negotiateMtu",
+      "entry": "0x480948",
+      "first_request": 253,
+      "first_argument": "0x480CA4",
+      "fallback_request": 78,
+      "fallback_argument": "0x480C58",
+      "failure_fallback": "Current mtuNow",
+      "per_value_limit": "min(MTU - 3, 250); use 20 when MTU - 3 < 1"
+    },
+    "send": {
+      "function": "FlutterBleRadioTransport._sendLocked",
+      "entry": "0x76F3B4",
+      "single_write_call": "0x76F46C",
+      "k8_large_value_call": "0x76F4A4",
+      "long_write_function": "0x76F680",
+      "normal_write_function": "0x7704F4",
+      "behavior": "K8 uses one whole value, allows long write if needed, then waits 120 ms. Other protocol branch chunks with a 15 ms gap.",
+      "post_frame_delay_load": "0x76F594",
+      "duration_object": "Duration@a51d41",
+      "microseconds": 120000
+    },
+    "framing": {
+      "encode": "0x7725AC",
+      "decode": "0x771538",
+      "crc": "0x771BB0",
+      "wire_mode": "plain",
+      "crc_algorithm": {
+        "name": "CRC-16/X25",
+        "initial": 65535,
+        "reflected_polynomial": 33800,
+        "final_xor": 65535
+      },
+      "placeholder_compare": [
+        "0x77187C",
+        "0x771884"
+      ],
+      "nonplaceholder_crc_compare": [
+        "0x7718A8",
+        "0x7718BC"
+      ],
+      "request_forwarding": "K8Session.request forwards encoded bytes to transport at 0x76F170..0x76F17C without XOR"
+    },
+    "message_lengths": {
+      "hello_to_payload": "0x772A28",
+      "hello_allocate": "0x772A44",
+      "hello_payload_bytes": 24,
+      "hello_declared_length": 24,
+      "write_encode": "0xBDF6AC",
+      "write_allocate": "0xBDF6F4",
+      "write_payload_bytes": 140,
+      "write_declared_length": 140,
+      "write_data_offset": 12,
+      "write_data_capacity": 128,
+      "write_count_field_offset": 4,
+      "note": "Dart Uint8Array allocation lengths use tagged Smi (48 means 24 bytes, 280 means 140 bytes). Copy count may be less than 128, but encoder receives the entire padded array."
+    },
+    "scan": {
+      "page_call": "0x797B0C",
+      "function": "FlutterBluePlus.startScan",
+      "entry": "0x797B20",
+      "service_filter_list": "List<Guid>(0)",
+      "service_filter_store": [
+        "0x797C60",
+        "0x797C68"
+      ],
+      "to_map_function": "BmScanSettings.toMap",
+      "to_map_entry": "0x798E6C",
+      "named_key": "with_services",
+      "named_key_address": "0x798ED8",
+      "advertised_service_filter": false,
+      "web_chooser": {
+        "acceptAllDevices": true,
+        "optionalServices": [
+          "0000ff12-0000-1000-8000-00805f9b34fb"
+        ]
+      },
+      "scope": "Empty advertised service filters are proved in this App call path. No physical advertising packet was captured. The Web chooser grants one explicitly selected service and still validates its exact GATT characteristics."
+    }
+  },
+  "browser_implementation": {
+    "module": "src/protocol/transports.mjs",
+    "preset_export": "DEFAULT_K8_BLE_PROFILE",
+    "request_method": "writeValueWithResponse",
+    "max_attribute_value": 512,
+    "negotiated_mtu_exposed": false,
+    "long_write_platform_flag_exposed": false,
+    "fallback_on_write_error": "None; close and report uncertain outcome instead of splitting/retrying",
+    "frame_size_limit": 199,
+    "manual_chunk_payload_range": [
+      1,
+      244
+    ],
+    "manual_profiles_require_explicit_selection": true
+  },
+  "validation": {
+    "cpu_block_replay": "ble-crc-replay.json",
+    "script": "tests/reference/replay-ble-crc.py",
+    "crc_cases": 10,
+    "checksum_branch_cases": 30,
+    "golden_frames": 4,
+    "node_tests": [
+      "tests/ble-profile.test.mjs",
+      "tests/ble-frame.test.mjs",
+      "tests/protocol-transports.test.mjs"
+    ],
+    "physical_hardware": false
+  },
+  "limits": [
+    "UUIDs and visible device names are not a unique model identity; existing model/firmware/parameter gates still apply.",
+    "Web Bluetooth cannot directly select the official Android MTU or allow_long_write flag. Browser/OS/firmware long-value interoperability needs a physical test.",
+    "No automatic probing of other services or unproved UUID roles. FFF1 is converted in the constructor but not stored as service/TX/RX in this optimized build.",
+    "Static GATT proof and CPU arithmetic replay do not establish physical RF, radio flash, Android pairing or readback behavior."
+  ],
+  "primary_web_references": [
+    "https://webbluetoothcg.github.io/web-bluetooth/",
+    "https://chromium.googlesource.com/chromium/src/+/76e47a170aa0d395b2893eecf8c22148251fa6d0/third_party/blink/renderer/modules/bluetooth/bluetooth_remote_gatt_characteristic.cc"
+  ]
+}
